@@ -77,3 +77,57 @@ Firebase Realtime Database as the web version — unchanged.
   authentication, same as the web version. Worth checking your Firebase
   rules restrict access appropriately (this is independent of the
   Android wrapper).
+
+## Push notifications (digest of item changes, every 3 minutes)
+
+Two pieces work together:
+
+- **This app** registers its FCM token to
+  `/notifyState/{familyKey}/deviceTokens` in the Realtime Database on
+  every launch, and shows whatever notification it receives
+  (`GroceryMessagingService.kt`).
+- **`functions/index.js`** (Cloud Functions, at the repo root, not under
+  `android/`) watches the same database for item toggles, logs each one,
+  and every 3 minutes turns any that piled up into a single push —
+  emptying the log if there's nothing new, so quiet periods send
+  nothing.
+
+None of this works until you complete the setup below — it's Firebase
+console/CLI work only you can do (needs your Google account):
+
+1. **Register the Android app in Firebase console** — the project is
+   assumed to be `family-grocery-list-bd6e3` (inferred from the database
+   URL already in the page; confirm it in the console, and fix
+   `.firebaserc` at the repo root if it's wrong). Project settings → Add
+   app → Android → package name `com.familygrocery.list` → register →
+   download `google-services.json` → place it at
+   `android/app/google-services.json` (this repo doesn't have it — the
+   build fails without it, with a clear "File google-services.json is
+   missing" error). It's not a secret credential (Google's own docs say
+   it's fine to commit), so either commit it directly or keep it as a
+   CI secret if you'd rather not.
+2. **Enable the Blaze (pay-as-you-go) plan** on that Firebase project.
+   This is required for `sendDigest`'s scheduled trigger specifically —
+   any Cloud Scheduler–based function needs Blaze, regardless of how
+   little it runs. For a family-sized app you'll almost certainly stay
+   within the free quota (so ~$0/month), but a billing account/card does
+   need to be on file.
+3. **Deploy the functions** from your own machine (this needs your
+   Firebase login, which isn't available in the sandbox that built this):
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   cd functions && npm install && cd ..
+   firebase deploy --only functions
+   ```
+
+Once deployed, checking/unchecking an item on any device (app or the
+website) logs the change; after up to 3 minutes of accumulated changes,
+every registered device gets one push summarizing them.
+
+**Why this shape:** `pendingChanges`/`deviceTokens` live under
+`/notifyState/{familyKey}`, not under `/families/{familyKey}` — the
+page's `saveToDB()` overwrites that whole node (`checked`,
+`customItems`, `lastPurchaseTime`, `eventLists` together) on every
+single save, which would silently wipe out any bookkeeping stored
+alongside it. `/notifyState` is a sibling path the page never touches.

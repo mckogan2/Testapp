@@ -1,7 +1,10 @@
 package com.familygrocery.list
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
@@ -12,10 +15,13 @@ import android.webkit.WebView
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebResourceErrorCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import com.google.firebase.messaging.FirebaseMessaging
 
 /**
  * Thin native wrapper around the family grocery list single-page app. The
@@ -35,9 +41,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private var backPressedOnce = false
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            GroceryMessagingService.registerToken(token)
+        }
 
         webView = WebView(this)
         setContentView(webView)

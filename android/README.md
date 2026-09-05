@@ -112,14 +112,29 @@ console/CLI work only you can do (needs your Google account):
    little it runs. For a family-sized app you'll almost certainly stay
    within the free quota (so ~$0/month), but a billing account/card does
    need to be on file.
-3. **Deploy the functions** from your own machine (this needs your
-   Firebase login, which isn't available in the sandbox that built this):
-   ```bash
-   npm install -g firebase-tools
-   firebase login
-   cd functions && npm install && cd ..
-   firebase deploy --only functions
-   ```
+3. **Deploy the functions.** Two ways:
+   - **From your own machine** (needs an interactive Firebase login,
+     which isn't possible from CI or this sandbox):
+     ```bash
+     npm install -g firebase-tools
+     firebase login
+     cd functions && npm install && cd ..
+     firebase deploy --only functions
+     ```
+   - **Automatically via CI** (`.github/workflows/deploy-functions.yml`)
+     — deploys on every push to `functions/**` using a service account
+     instead of an interactive login, so no computer/CLI needed. One-time
+     setup, done entirely in a browser:
+     1. In [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts)
+        (project `family-grocery-list-bd6e3`), create a service account
+        (e.g. `github-actions-deploy`), grant it the **Editor** role,
+        then Keys → Add key → Create new key → JSON. This downloads a
+        `.json` file.
+     2. In the GitHub repo → Settings → Secrets and variables → Actions
+        → New repository secret. Name it `FIREBASE_SERVICE_ACCOUNT_KEY`,
+        paste the entire contents of that JSON file as the value.
+     3. Push (or re-run the workflow manually from the Actions tab) —
+        it deploys both functions automatically from then on.
 
 Once deployed, checking/unchecking an item on any device (app or the
 website) logs the change; after up to 3 minutes of accumulated changes,

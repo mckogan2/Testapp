@@ -16,6 +16,20 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        // Pinned instead of relying on each machine's/CI runner's default
+        // debug keystore, which is generated fresh (and differently) the
+        // first time it's needed — that made successive CI-built debug
+        // APKs sign with different keys, so installing an update over an
+        // older build could fail with a signature conflict.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

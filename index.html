@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notification Test App</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <style>
   body {
     font-family: system-ui, sans-serif;
@@ -35,6 +38,8 @@
 <body>
   <h1>Notification Test</h1>
   <p>Click the button to request permission and fire a test browser notification.</p>
+  <p id="iosNote" hidden>On iPhone/iPad, Safari only allows notifications for sites added to the
+    Home Screen: tap Share &rarr; Add to Home Screen, then open the app from there and try again.</p>
   <button id="requestBtn">Enable Notifications</button>
   <button id="sendBtn" disabled>Send Test Notification</button>
   <p id="status"></p>
@@ -43,15 +48,36 @@
   const requestBtn = document.getElementById('requestBtn');
   const sendBtn = document.getElementById('sendBtn');
   const status = document.getElementById('status');
+  const iosNote = document.getElementById('iosNote');
 
   function setStatus(text) {
     status.textContent = text;
   }
 
-  if (!('Notification' in window)) {
-    setStatus('This browser does not support notifications.');
-    requestBtn.disabled = true;
-  } else {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (isIos && !isStandalone) {
+    iosNote.hidden = false;
+  }
+
+  let swRegistration = null;
+
+  async function init() {
+    if (!('Notification' in window)) {
+      setStatus('This browser does not support notifications.');
+      requestBtn.disabled = true;
+      return;
+    }
+
+    if ('serviceWorker' in navigator) {
+      try {
+        swRegistration = await navigator.serviceWorker.register('service-worker.js');
+        await navigator.serviceWorker.ready;
+      } catch (err) {
+        console.error('Service worker registration failed', err);
+      }
+    }
+
     setStatus(`Current permission: ${Notification.permission}`);
     sendBtn.disabled = Notification.permission !== 'granted';
   }
@@ -62,12 +88,27 @@
     sendBtn.disabled = permission !== 'granted';
   });
 
-  sendBtn.addEventListener('click', () => {
-    new Notification('Test Notification', {
+  sendBtn.addEventListener('click', async () => {
+    const options = {
       body: 'This is a test notification from Notification Test App.',
-      icon: 'https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/solid/bell.svg'
-    });
+      icon: 'icon.svg'
+    };
+
+    try {
+      if (swRegistration) {
+        // Mobile browsers (Chrome/Firefox for Android) require notifications
+        // to be shown via a Service Worker; the plain constructor below throws there.
+        await swRegistration.showNotification('Test Notification', options);
+      } else {
+        new Notification('Test Notification', options);
+      }
+      setStatus('Notification sent.');
+    } catch (err) {
+      setStatus(`Failed to send notification: ${err.message}`);
+    }
   });
+
+  init();
 </script>
 </body>
 </html>

@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -14,6 +13,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.webkit.WebResourceErrorCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 
@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
-                error: WebResourceError
+                error: WebResourceErrorCompat
             ) {
                 if (request.isForMainFrame) {
                     Toast.makeText(this@MainActivity, R.string.load_error, Toast.LENGTH_LONG).show()

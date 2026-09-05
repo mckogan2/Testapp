@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notification Test App</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 480px;
+    margin: 80px auto;
+    text-align: center;
+    color: #222;
+  }
+  button {
+    font-size: 1rem;
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    margin: 8px;
+  }
+  button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+  #status {
+    margin-top: 24px;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+  <h1>Notification Test</h1>
+  <p>Click the button to request permission and fire a test browser notification.</p>
+  <button id="requestBtn">Enable Notifications</button>
+  <button id="sendBtn" disabled>Send Test Notification</button>
+  <p id="status"></p>
+
+<script>
+  const requestBtn = document.getElementById('requestBtn');
+  const sendBtn = document.getElementById('sendBtn');
+  const status = document.getElementById('status');
+
+  function setStatus(text) {
+    status.textContent = text;
+  }
+
+  if (!('Notification' in window)) {
+    setStatus('This browser does not support notifications.');
+    requestBtn.disabled = true;
+  } else {
+    setStatus(`Current permission: ${Notification.permission}`);
+    sendBtn.disabled = Notification.permission !== 'granted';
+  }
+
+  requestBtn.addEventListener('click', async () => {
+    const permission = await Notification.requestPermission();
+    setStatus(`Current permission: ${permission}`);
+    sendBtn.disabled = permission !== 'granted';
+  });
+
+  sendBtn.addEventListener('click', () => {
+    new Notification('Test Notification', {
+      body: 'This is a test notification from Notification Test App.',
+      icon: 'https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/solid/bell.svg'
+    });
+  });
+</script>
+</body>
+</html>

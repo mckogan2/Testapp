@@ -107,11 +107,17 @@ console/CLI work only you can do (needs your Google account):
    it's fine to commit), so either commit it directly or keep it as a
    CI secret if you'd rather not.
 2. **Enable the Blaze (pay-as-you-go) plan** on that Firebase project.
-   This is required for `sendDigest`'s scheduled trigger specifically —
-   any Cloud Scheduler–based function needs Blaze, regardless of how
-   little it runs. For a family-sized app you'll almost certainly stay
-   within the free quota (so ~$0/month), but a billing account/card does
-   need to be on file.
+   Required both for `sendDigest`'s Cloud Scheduler trigger and for 2nd
+   gen functions generally. For a family-sized app you'll almost
+   certainly stay within the free quota (so ~$0/month), but a billing
+   account/card does need to be on file.
+
+   > These are deliberately **2nd gen** functions. 1st gen deploys fail
+   > on this project with an opaque `GetDefaultServiceAccount`
+   > permission error, because 1st gen depends on the legacy Cloud Build
+   > default service account that newer Firebase projects no longer get.
+   > No amount of IAM role granting fixes that — 2nd gen (Cloud Run
+   > backed) is the supported path.
 3. **Deploy the functions.** Two ways:
    - **From your own machine** (needs an interactive Firebase login,
      which isn't possible from CI or this sandbox):

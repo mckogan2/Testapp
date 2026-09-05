@@ -3,10 +3,16 @@
 // Two functions:
 //   logCheckedChanges — fires on every write to a family's `checked` map
 //     (the item-toggle data the app already writes) and records one
-//     pending-change entry per item that flipped.
-//   sendDigest — runs every 3 minutes; for any family with pending
-//     changes, sends ONE push notification summarizing all of them, then
-//     clears the log. A quiet 3-minute window sends nothing.
+//     pending entry per item that flipped.
+//   sendDigest — runs every 3 minutes; if any family has pending
+//     changes, sends ONE push summarizing all of them, then clears the
+//     log. A quiet 3-minute window sends nothing.
+//
+// These are 2nd gen (Cloud Run backed) functions. 1st gen deploys fail
+// on this project because they depend on the legacy Cloud Build default
+// service account, which newer Firebase projects no longer get —
+// surfacing as an opaque "GetDefaultServiceAccount" permission error
+// that no amount of IAM granting fixes.
 //
 // Pending changes and device tokens live under /notifyState/{familyKey},
 // deliberately separate from /families/{familyKey} — the app's own
@@ -14,18 +20,21 @@
 // customItems, lastPurchaseTime, eventLists together), which would wipe
 // out any bookkeeping stored alongside it.
 
-const functions = require("firebase-functions/v1");
+const { onValueWritten } = require("firebase-functions/v2/database");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
 const db = admin.database();
 
-exports.logCheckedChanges = functions.database
-  .ref("/families/{familyKey}/checked")
-  .onWrite(async (change, context) => {
-    const { familyKey } = context.params;
-    const before = change.before.val() || {};
-    const after = change.after.val() || {};
+const REGION = "us-central1";
+
+exports.logCheckedChanges = onValueWritten(
+  { ref: "/families/{familyKey}/checked", region: REGION },
+  async (event) => {
+    const { familyKey } = event.params;
+    const before = event.data.before.val() || {};
+    const after = event.data.after.val() || {};
 
     const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
     const updates = {};
@@ -45,13 +54,14 @@ exports.logCheckedChanges = functions.database
       };
     });
 
-    if (Object.keys(updates).length === 0) return null;
-    return db.ref().update(updates);
-  });
+    if (Object.keys(updates).length === 0) return;
+    await db.ref().update(updates);
+  }
+);
 
-exports.sendDigest = functions.pubsub
-  .schedule("every 3 minutes")
-  .onRun(async () => {
+exports.sendDigest = onSchedule(
+  { schedule: "every 3 minutes", region: REGION },
+  async () => {
     const snap = await db.ref("/notifyState").once("value");
     const state = snap.val() || {};
 
@@ -96,5 +106,5 @@ exports.sendDigest = functions.pubsub
     });
 
     await Promise.all(work);
-    return null;
-  });
+  }
+);

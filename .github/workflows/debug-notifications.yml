@@ -1,0 +1,36 @@
+name: Debug Notifications
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read relevant Realtime Database paths
+        run: |
+          echo "== /notifyState (pendingChanges + deviceTokens) =="
+          curl -sS "https://family-grocery-list-bd6e3-default-rtdb.firebaseio.com/notifyState.json"
+          echo
+          echo
+          echo "== /families/my_family_shopping_list_2024/checked =="
+          curl -sS "https://family-grocery-list-bd6e3-default-rtdb.firebaseio.com/families/my_family_shopping_list_2024/checked.json"
+          echo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: Fetch logCheckedChanges logs
+        run: npx firebase-tools@latest functions:log --only logCheckedChanges --project family-grocery-list-bd6e3 -n 50
+        continue-on-error: true
+
+      - name: Fetch sendDigest logs
+        run: npx firebase-tools@latest functions:log --only sendDigest --project family-grocery-list-bd6e3 -n 50
+        continue-on-error: true

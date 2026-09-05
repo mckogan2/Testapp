@@ -2,6 +2,9 @@ name: Debug Notifications
 
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/android-app-grocery-list]
+    paths: [".github/workflows/debug-notifications.yml"]
 
 jobs:
   debug:

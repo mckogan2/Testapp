@@ -118,29 +118,62 @@ console/CLI work only you can do (needs your Google account):
    > default service account that newer Firebase projects no longer get.
    > No amount of IAM role granting fixes that — 2nd gen (Cloud Run
    > backed) is the supported path.
-3. **Deploy the functions.** Two ways:
-   - **From your own machine** (needs an interactive Firebase login,
-     which isn't possible from CI or this sandbox):
-     ```bash
-     npm install -g firebase-tools
-     firebase login
-     cd functions && npm install && cd ..
-     firebase deploy --only functions
-     ```
-   - **Automatically via CI** (`.github/workflows/deploy-functions.yml`)
-     — deploys on every push to `functions/**` using a service account
-     instead of an interactive login, so no computer/CLI needed. One-time
-     setup, done entirely in a browser:
-     1. In [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts)
-        (project `family-grocery-list-bd6e3`), create a service account
-        (e.g. `github-actions-deploy`), grant it the **Editor** role,
-        then Keys → Add key → Create new key → JSON. This downloads a
-        `.json` file.
-     2. In the GitHub repo → Settings → Secrets and variables → Actions
-        → New repository secret. Name it `FIREBASE_SERVICE_ACCOUNT_KEY`,
-        paste the entire contents of that JSON file as the value.
-     3. Push (or re-run the workflow manually from the Actions tab) —
-        it deploys both functions automatically from then on.
+3. **Deploy the functions.** The reliable way is
+   [Google Cloud Shell](https://shell.cloud.google.com/?project=family-grocery-list-bd6e3)
+   — a browser terminal on a Google-hosted VM, so nothing is installed or
+   cloned on your own machine, and you're authenticated as the project
+   owner (which matters, see below):
+
+   ```bash
+   git clone https://github.com/mckogan2/Testapp.git
+   cd Testapp && git checkout claude/android-app-grocery-list
+   cd functions && npm install && cd ..
+   unset GOOGLE_CLOUD_QUOTA_PROJECT
+   firebase deploy --only functions --project family-grocery-list-bd6e3
+   ```
+
+   `unset GOOGLE_CLOUD_QUOTA_PROJECT` is required: Cloud Shell sets that
+   variable and the Firebase CLI can't upload function source while it
+   is set.
+
+   There is also `.github/workflows/deploy-functions.yml`, which deploys
+   via a service account key stored in the `FIREBASE_SERVICE_ACCOUNT_KEY`
+   repo secret. That path only works for redeploys of an already-working
+   setup — a service account with Editor cannot do the *first* deploy,
+   because initial provisioning requires modifying the project's IAM
+   policy, which Editor deliberately cannot do.
+
+### One-time project provisioning (already done, recorded for reference)
+
+This project was missing several service-agent bindings that Google
+normally creates automatically, so the first deploy needed all of the
+following. Fresh projects usually need none of this; it's written down
+in case it ever has to be reproduced.
+
+```bash
+# App Engine app — Cloud Functions stages source in an appspot.com bucket
+gcloud app create --region=us-central
+
+# Cloud Functions service agent: create the staging bucket
+gcloud projects add-iam-policy-binding family-grocery-list-bd6e3 \
+  --member=serviceAccount:service-334568458433@gcf-admin-robot.iam.gserviceaccount.com \
+  --role=roles/cloudfunctions.serviceAgent
+
+# Artifact Registry: create + push the gcf-artifacts repo
+gcloud projects add-iam-policy-binding family-grocery-list-bd6e3 \
+  --member=serviceAccount:service-334568458433@gcf-admin-robot.iam.gserviceaccount.com \
+  --role=roles/artifactregistry.admin
+gcloud projects add-iam-policy-binding family-grocery-list-bd6e3 \
+  --member=serviceAccount:334568458433-compute@developer.gserviceaccount.com \
+  --role=roles/artifactregistry.admin
+```
+
+The Eventarc/Pub/Sub bindings (`roles/iam.serviceAccountTokenCreator`,
+`roles/run.invoker`, `roles/eventarc.eventReceiver`) were created
+automatically by the CLI, because the deploy ran as project owner. On
+the very first 2nd gen deploy Eventarc also needs a few minutes to
+propagate — a deploy that fails with "it may take a few minutes before
+all necessary permissions are propagated" just needs re-running.
 
 Once deployed, checking/unchecking an item on any device (app or the
 website) logs the change; after up to 3 minutes of accumulated changes,

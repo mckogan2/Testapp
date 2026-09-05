@@ -1,10 +1,12 @@
 name: Debug Notifications
 
+# Diagnostic tool: run manually from the Actions tab when notifications
+# misbehave. Dumps /notifyState (registered device tokens + pending
+# changes) and recent Cloud Functions logs, which together pinpoint
+# whether a problem is the phone not registering, the database trigger
+# not firing, or the digest failing to send.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/android-app-grocery-list]
-    paths: [".github/workflows/debug-notifications.yml"]
 
 jobs:
   debug:

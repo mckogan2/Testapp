@@ -1,0 +1,49 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [claude/android-app-netlify-firebase-cj4i7h]
+    paths: ["android/**", ".github/workflows/android-build.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        working-directory: android
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poker-tracker-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish to release (direct download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-debug-latest
+          name: Poker Tracker — debug build
+          body: |
+            Auto-built debug APK from commit ${{ github.sha }}.
+
+            On your phone: download `app-debug.apk` below and open it.
+            You'll be prompted to allow "install unknown apps" for
+            whichever app you used to download it (Chrome/Files) —
+            allow it, then confirm the install.
+          files: android/app/build/outputs/apk/debug/app-debug.apk

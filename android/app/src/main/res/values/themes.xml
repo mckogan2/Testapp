@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.PokerTracker" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/felt_dark</item>
+        <item name="android:statusBarColor">@color/felt_dark</item>
+        <item name="android:navigationBarColor">@color/felt_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

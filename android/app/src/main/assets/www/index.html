@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>🛒 קניות משפחה</title>
+  <meta name="theme-color" content="#2d5a27" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="קניות" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+      background: #faf7f2; color: #2d2d2d;
+      direction: rtl; max-width: 480px;
+      margin: 0 auto; padding-bottom: 80px;
+      -webkit-user-select: none; user-select: none;
+    }
+    .header {
+      background: #2d5a27; color: #f5f0e8;
+      padding: 16px 20px 14px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    }
+    .header h2 { font-size: 20px; }
+    .subtitle { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+    .last-purchase {
+      font-size: 12px; background: rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 4px 10px; margin-top: 8px; display: inline-block;
+    }
+    .tabs { display: flex; gap: 8px; margin-top: 12px; direction: rtl; }
+    .tab-btn {
+      background: transparent; color: #f5f0e8;
+      border: 1.5px solid rgba(245,240,232,0.4);
+      border-radius: 20px; padding: 5px 12px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .tab-btn.active { background: #f5f0e8; color: #2d5a27; border-color: #f5f0e8; }
+    .tab-content { display: none; padding: 12px 16px; }
+    .tab-content.active { display: block; }
+    .category { margin-bottom: 18px; }
+    .cat-title {
+      font-size: 15px; font-weight: bold; color: #2d5a27;
+      border-bottom: 2px solid #d4edda; padding-bottom: 4px; margin-bottom: 10px;
+    }
+    .items-wrap { display: flex; flex-wrap: wrap; gap: 8px; direction: rtl; justify-content: flex-start; }
+    .item-btn {
+      background: #fff; color: #444;
+      border: 1.5px solid #ccc; border-radius: 20px;
+      padding: 6px 12px; font-size: 14px;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .item-btn.checked { background: #2d5a27; color: #fff; border-color: #2d5a27; box-shadow: 0 2px 6px rgba(45,90,39,0.25); }
+    .item-btn.occasional { background: #f5f5f5; color: #666; border: 1.5px dashed #bbb; font-size: 13px; }
+    .item-btn.occasional.checked { background: #2d5a27; color: #fff; border: 1.5px dashed #2d5a27; }
+    .item-btn.pressing { transform: scale(0.94); opacity: 0.7; }
+    .occ-wrap { display: inline-flex; align-items: center; gap: 3px; direction: rtl; }
+    .pin-btn { background: none; border: none; font-size: 14px; cursor: pointer; padding: 2px; opacity: 0.45; line-height: 1; }
+    .toggle-occasional { background: none; border: none; color: #888; font-size: 12px; cursor: pointer; margin-top: 8px; padding: 2px 0; font-family: inherit; display: block; }
+    .occasional-wrap { margin-top: 6px; }
+    .empty-basket { text-align: center; color: #aaa; margin-top: 60px; font-size: 16px; line-height: 2; }
+    .basket-cat-title { font-size: 13px; font-weight: bold; color: #2d5a27; margin-bottom: 6px; margin-top: 14px; }
+    .basket-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-radius: 10px; padding: 10px 14px;
+      margin-bottom: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      direction: rtl;
+    }
+    .basket-item span { font-size: 15px; }
+    .btn-remove { background: none; border: none; cursor: pointer; font-size: 18px; color: #cc4444; }
+    .action-btns { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .btn-whatsapp { background: #25D366; color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: inherit; width: 100%; }
+    .btn-whatsapp.copied { background: #2d5a27; }
+    .btn-done { background: #1a73e8; color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: inherit; width: 100%; }
+    .btn-clear { background: #fff; color: #cc4444; border: 1.5px solid #cc4444; border-radius: 12px; padding: 12px; font-size: 15px; cursor: pointer; font-family: inherit; width: 100%; }
+    .add-box { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .add-box h3 { font-size: 16px; font-weight: bold; color: #2d5a27; margin-bottom: 14px; }
+    .add-box label { font-size: 13px; color: #666; display: block; margin-bottom: 4px; }
+    .add-box input, .add-box select { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; font-family: inherit; margin-bottom: 12px; direction: rtl; text-align: right; }
+    .add-box input:focus, .add-box select:focus { outline: none; border-color: #2d5a27; }
+    .btn-add { width: 100%; background: #2d5a27; color: #fff; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: bold; cursor: pointer; font-family: inherit; }
+    .sync-info { margin-top: 16px; background: #e8f4ea; border-radius: 12px; padding: 14px; font-size: 13px; color: #2d5a27; line-height: 1.8; }
+
+    /* MODALS */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; align-items: flex-end; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; padding: 24px 20px 32px; direction: rtl; }
+    .modal h3 { font-size: 18px; color: #2d5a27; margin-bottom: 6px; }
+    .modal .modal-sub { font-size: 13px; color: #888; margin-bottom: 18px; }
+    .modal-item { display: flex; align-items: center; justify-content: space-between; direction: rtl; padding: 11px 4px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+    .modal-item:last-child { border-bottom: none; }
+    .modal-item span { font-size: 15px; }
+    .modal-item .chk { width: 24px; height: 24px; border-radius: 6px; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: all 0.15s; }
+    .modal-item.not-bought .chk { background: #cc4444; border-color: #cc4444; color: #fff; }
+    .modal-cat { font-size: 12px; font-weight: bold; color: #2d5a27; margin: 14px 0 4px; }
+    .modal-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    .btn-confirm-done { background: #1a73e8; color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: inherit; width: 100%; }
+    .btn-cancel { background: #fff; color: #888; border: 1.5px solid #ddd; border-radius: 12px; padding: 12px; font-size: 15px; cursor: pointer; font-family: inherit; width: 100%; }
+
+    /* CONTEXT MENU MODAL */
+    .ctx-title { font-size: 17px; font-weight: bold; color: #2d5a27; margin-bottom: 4px; }
+    .ctx-sub { font-size: 12px; color: #aaa; margin-bottom: 20px; }
+    .ctx-option {
+      display: flex; align-items: center; gap: 12px; direction: rtl;
+      padding: 13px 6px; border-bottom: 1px solid #f0f0f0; cursor: pointer;
+      font-size: 15px; border-radius: 8px;
+    }
+    .ctx-option:last-child { border-bottom: none; }
+    .ctx-option:active { background: #f5f5f5; }
+    .ctx-option .ctx-icon { font-size: 20px; }
+    .ctx-option.danger { color: #cc4444; }
+    .ctx-cat-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+    .ctx-cat-option {
+      padding: 10px 14px; border-radius: 10px; cursor: pointer;
+      font-size: 14px; border: 1.5px solid #eee; background: #fafafa;
+    }
+    .ctx-cat-option:active { background: #e8f4ea; border-color: #2d5a27; }
+    .ctx-cat-option.current { border-color: #2d5a27; background: #e8f4ea; font-weight: bold; }
+    .ctx-back { background: none; border: none; color: #1a73e8; font-size: 14px; cursor: pointer; font-family: inherit; margin-bottom: 16px; padding: 0; }
+
+    #install-banner { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #2d5a27; color: #fff; padding: 14px 20px; align-items: center; justify-content: space-between; z-index: 999; flex-direction: row-reverse; }
+    #install-banner span { font-size: 14px; }
+    #install-banner .btn-install { background: #fff; color: #2d5a27; border: none; border-radius: 8px; padding: 8px 14px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 13px; }
+    #install-banner .btn-dismiss { background: transparent; color: rgba(255,255,255,0.7); border: none; font-size: 20px; padding: 4px 8px; cursor: pointer; }
+  .search-wrap {
+    padding: 10px 16px 0;
+    position: sticky;
+    top: 108px;
+    z-index: 99;
+    background: #faf7f2;
+  }
+  .search-input {
+    width: 100%;
+    padding: 10px 36px 10px 12px;
+    border: 1.5px solid #ddd;
+    border-radius: 20px;
+    font-size: 15px;
+    font-family: inherit;
+    direction: rtl;
+    text-align: right;
+    background: #fff;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: #2d5a27; }
+  .search-clear {
+    position: absolute;
+    left: 26px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #aaa;
+    display: none;
+  }
+  .search-container { position: relative; }
+  .search-results-label {
+    font-size: 12px;
+    color: #888;
+    text-align: right;
+    padding: 6px 4px 0;
+  }
+  .no-results {
+    text-align: center;
+    color: #aaa;
+    margin-top: 40px;
+    font-size: 15px;
+    line-height: 2;
+  }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h2>🛒 רשימת הקניות שלנו</h2>
+    <div class="subtitle" id="subtitle">0 פריטים נבחרו</div>
+  </div>
+  <div id="last-purchase-bar"></div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-list" onclick="switchTab('list')">📋 רשימה</button>
+    <button class="tab-btn" id="tab-basket" onclick="switchTab('basket')">🧺 סל (0)</button>
+    <button class="tab-btn" id="tab-add" onclick="switchTab('add')">➕ הוסף</button>
+    <button class="tab-btn" id="tab-events" onclick="switchTab('events')">&#128221; אירועים</button>
+  </div>
+</div>
+
+<div class="tab-content active" id="content-list">
+  <div class="search-wrap" id="search-wrap">
+    <div class="search-container">
+      <input class="search-input" id="search-input" type="text"
+        placeholder="&#x1F50D; חיפוש מוצר..."
+        oninput="onSearchInput(this.value)"
+      />
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="search-results-label" id="search-label"></div>
+  </div>
+  <div id="list-inner"></div>
+</div>
+<div class="tab-content" id="content-basket"></div>
+<div class="tab-content" id="content-add">
+  <div class="add-box">
+    <h3>➕ הוסף פריט חדש</h3>
+    <label>שם הפריט</label>
+    <input type="text" id="new-item-name" placeholder="לדוגמה: חלב שיבולת שועל" onkeydown="if(event.key==='Enter') addCustomItem()" />
+    <label>קטגוריה</label>
+    <select id="new-item-cat"></select>
+    <button class="btn-add" onclick="addCustomItem()">הוסף לרשימה</button>
+  </div>
+  <div class="sync-info">
+    🔄 <strong>סנכרון אוטומטי</strong><br>
+    הרשימה מסתנכרנת כל 4 שניות.<br>
+    💡 <strong>לחיצה ארוכה</strong> על פריט לעריכה או הסרה.
+  </div>
+</div>
+
+<!-- DONE SHOPPING MODAL -->
+<div class="modal-overlay" id="done-modal">
+  <div class="modal">
+    <h3>✅ בוצעה קנייה!</h3>
+    <div class="modal-sub">סמן את הפריטים שלא נקנו — הם יישארו לרשימה הבאה</div>
+    <div id="modal-items-list"></div>
+    <div class="modal-actions">
+      <button class="btn-confirm-done" onclick="confirmDone()">סיים קנייה ונקה רשימה</button>
+      <button class="btn-cancel" onclick="closeModal('done-modal')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU MODAL -->
+<div class="modal-overlay" id="ctx-modal">
+  <div class="modal" id="ctx-modal-inner"></div>
+</div>
+
+<div class="tab-content" id="content-events"></div>
+
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <h3>ייבוא מטקסט</h3>
+    <div class="modal-sub">הדבק טקסט — כל שורה תהפוך לפריט</div>
+    <textarea id="import-textarea" placeholder="לדוגמא:&#10;בלונים&#10;עוגה&#10;נרות" style="width:100%;height:130px;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;direction:rtl;text-align:right;resize:none;margin-bottom:12px;box-sizing:border-box;"></textarea>
+    <div class="modal-actions">
+      <button class="btn-confirm-done" style="background:#7b3fa0" onclick="doImportText()">ייבא פריטים</button>
+      <button class="btn-cancel" onclick="closeModal('import-modal')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div id="install-banner">
+  <span>📲 הוסף לדף הבית לגישה מהירה!</span>
+  <button class="btn-install" onclick="installApp()">התקן</button>
+  <button class="btn-dismiss" onclick="dismissInstall()">✕</button>
+</div>
+
+<script>
+const FAMILY_KEY = "my_family_shopping_list_2024";
+const DB_URL = "https://family-grocery-list-bd6e3-default-rtdb.firebaseio.com";
+
+const INITIAL_ITEMS = {
+  "🥦 ירקות ופירות": {
+    frequent: ["עגבניות","בצל","תפוחי אדמה","שום","חסה","גזר","בננות","תפוחים","לימונים","אבוקדו","מלפפון","פלפל","פטריות"],
+    occasional: ["אספרגוס","ברוקולי","אוכמניות","מנגו","ג'ינג'ר","בטטה","כרובית","תרד"]
+  },
+  "🥩 בשר ודגים": {
+    frequent: ["חזה עוף","בשר טחון","ביצים","סלמון","נקניקיות"],
+    occasional: ["כבש","שרימפס","טונה (שימורים)","הודו","דג ים"]
+  },
+  "🧊 מקפיא": {
+    frequent: ["צ'יפס","פיצות קטנות","עוף קפוא"],
+    occasional: ["דגים קפואים","ירקות קפואים","גלידה","מוצרלה קפואה"]
+  },
+  "🧀 מוצרי חלב": {
+    frequent: ["חלב","חמאה","גבינה צהובה","גבינה לבנה","קוטג'","יוגורט","שמנת"],
+    occasional: ["שמנת חמוצה","מוצרלה","פרמזן","גבינת שמנת","לבנה"]
+  },
+  "🍞 מאפים": {
+    frequent: ["לחם","פיתות","לחמניות","פיצה"],
+    occasional: ["בייגל","קרואסון","בגט","לחם שיפון"]
+  },
+  "🥫 מזון יבש": {
+    frequent: ["שמן זית","אורז","פסטה","פתיתים","מלח","פלפל שחור","סוכר","קפה","תה","קמח","עגבניות מרוסקות","רסק עגבניות","אפונה","זיתים","תירס"],
+    occasional: ["דבש","רוטב סויה","חומץ","אבקת אפייה","חלב קוקוס","עדשים","חומוס","כוסמת","שעועית"]
+  },
+  "🧴 בית ומשק": {
+    frequent: ["סבון כלים","אבקת כביסה","נייר טואלט","שקיות זבל","מגבות נייר"],
+    occasional: ["אקונומיקה","מרכך כביסה","ספוגים","נייר אלומיניום","ניילון נצמד"]
+  },
+  "🍫 חטיפים ושתייה": {
+    frequent: ["מים","מיץ","קרקרים","חטיפים","קורנפלקס"],
+    occasional: ["שוקולד","חטיפי חלבון","מים מוגזים","פופקורן","בירה"]
+  }
+};
+
+let checked = {};
+let customItems = {};
+let eventLists = [];  // { cat: { frequent:[], occasional:[], promoted:[], removed:[] } }
+let lastPurchaseTime = null;
+let showOccasional = {};
+let pollTimer = null;
+let deferredPrompt = null;
+let notBoughtInModal = new Set();
+
+// ─── FIREBASE ────────────────────────────────────────────
+async function dbGet(key) {
+  try { const r = await fetch(`${DB_URL}/${key}.json`); return r.ok ? await r.json() : null; }
+  catch { return null; }
+}
+async function dbSet(key, value) {
+  try { await fetch(`${DB_URL}/${key}.json`, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(value) }); }
+  catch {}
+}
+function safeKey() { return "families/" + FAMILY_KEY.replace(/[^a-z0-9_]/gi,"_"); }
+// Real-time listener using Firebase REST streaming
+let eventSource = null;
+
+function startRealtimeSync() {
+  if (eventSource) eventSource.close();
+  const url = `${DB_URL}/${safeKey()}.json`;
+  eventSource = new EventSource(url);
+  eventSource.addEventListener('put', (e) => {
+    try {
+      const payload = JSON.parse(e.data);
+      const data = payload.data;
+      if (data) {
+        checked = data.checked || {};
+        customItems = data.customItems || {};
+        lastPurchaseTime = data.lastPurchaseTime || null;
+        if (Array.isArray(data.eventLists)) {
+          eventLists = data.eventLists.map(function(l) {
+            if (!l.items) l.items = [];
+            return l;
+          });
+        }
+        renderAll();
+      }
+    } catch {}
+  });
+  eventSource.addEventListener('patch', (e) => {
+    try {
+      const payload = JSON.parse(e.data);
+      const data = payload.data;
+      if (data) {
+        if (data.checked !== undefined) checked = data.checked;
+        if (data.customItems !== undefined) customItems = data.customItems;
+        if (data.lastPurchaseTime !== undefined) lastPurchaseTime = data.lastPurchaseTime;
+        renderAll();
+      }
+    } catch {}
+  });
+  eventSource.onerror = () => {
+    // On error, fall back to polling
+    eventSource.close();
+    setTimeout(startRealtimeSync, 5000);
+  };
+}
+
+async function loadFromDB() {
+  const data = await dbGet(safeKey());
+  if (data) {
+    checked = data.checked||{};
+    customItems = data.customItems||{};
+    lastPurchaseTime = data.lastPurchaseTime||null;
+    if (Array.isArray(data.eventLists)) {
+      eventLists = data.eventLists.map(function(l) {
+        if (!l.items) l.items = [];
+        return l;
+      });
+    }
+  }
+  renderAll();
+}
+async function saveToDB() {
+  // Fire and forget — don't await, UI already updated optimistically
+  dbSet(safeKey(), { checked, customItems, lastPurchaseTime, eventLists });
+}
+function startPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = setInterval(loadFromDB, 4000); }
+
+// ─── ITEMS ───────────────────────────────────────────────
+// customItems[cat]: { frequent, occasional, hide_freq, hide_occ, hidden }
+function ensureCat(cat) {
+  if (!customItems[cat]) customItems[cat] = {};
+  const ci = customItems[cat];
+  if (!ci.frequent)   ci.frequent   = [];
+  if (!ci.occasional) ci.occasional = [];
+  if (!ci.hide_freq)  ci.hide_freq  = [];
+  if (!ci.hide_occ)   ci.hide_occ   = [];
+  if (!ci.hidden)     ci.hidden     = [];
+  return ci;
+}
+function getItems() {
+  const result = {};
+  for (const [cat, val] of Object.entries(INITIAL_ITEMS)) {
+    const ci = customItems[cat] || {};
+    const hideFreq = ci.hide_freq || [];
+    const hideOcc  = ci.hide_occ  || [];
+    const hidden   = ci.hidden    || [];
+    const freqList = [...val.frequent.filter(i => !hideFreq.includes(i)),
+                  ...(ci.frequent||[]).filter(i => !hidden.includes(i))];
+    const occList  = [...val.occasional.filter(i => !hideOcc.includes(i)),
+                  ...(ci.occasional||[]).filter(i => !hidden.includes(i))];
+    // Deduplicate: occasional wins if item appears in both
+    const freqSet = new Set(freqList);
+    const occSet  = new Set(occList);
+    const sortHe = (a, b) => a.localeCompare(b, 'he');
+    result[cat] = {
+      frequent:  [...freqSet].filter(i => !occSet.has(i)).sort(sortHe),
+      occasional:[...occSet].sort(sortHe)
+    };
+  }
+  return result;
+}
+function getCheckedItems() {
+  const list = [];
+  for (const [cat, {frequent, occasional}] of Object.entries(getItems()))
+    for (const item of [...frequent,...occasional])
+      if (checked[`${cat}||${item}`]) list.push({cat, item});
+  return list;
+}
+function allCategories() { return Object.keys(INITIAL_ITEMS); }
+
+// ─── TABS ────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.add("active");
+  document.getElementById("content-"+tab).classList.add("active");
+  if (tab==="basket") renderBasket();
+  if (tab==="list") { clearSearch(); renderList(); }
+  if (tab==="events") { evActiveList=null; renderEventsTab(); }
+}
+
+// ─── LONG PRESS ─────────────────────────────────────────
+let pressTimer = null;
+let pressTarget = null;
+
+function attachLongPress(el, cat, item, isOcc) {
+  const onStart = (e) => {
+    pressTarget = el;
+    el.classList.add("pressing");
+    pressTimer = setTimeout(() => {
+      el.classList.remove("pressing");
+      openContextMenu(cat, item, isOcc);
+    }, 550);
+  };
+  const onEnd = () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+    if (pressTarget) pressTarget.classList.remove("pressing");
+    pressTarget = null;
+  };
+  el.addEventListener("touchstart", onStart, {passive:true});
+  el.addEventListener("touchend", onEnd);
+  el.addEventListener("touchcancel", onEnd);
+  el.addEventListener("mousedown", onStart);
+  el.addEventListener("mouseup", onEnd);
+  el.addEventListener("mouseleave", onEnd);
+}
+
+// ─── CONTEXT MENU ────────────────────────────────────────
+function openContextMenu(cat, item, isOcc) {
+  const inner = document.getElementById("ctx-modal-inner");
+  inner.innerHTML = `
+    <div class="ctx-title">${item}</div>
+    <div class="ctx-sub">${cat}</div>
+    <div class="ctx-option" onclick="openChangeCat('${esc(cat)}','${esc(item)}','${isOcc}')">
+      <span class="ctx-icon">📂</span><span>שנה קטגוריה</span>
+    </div>
+    ${isOcc ? `<div class="ctx-option" onclick="promoteToFrequent('${esc(cat)}','${esc(item)}'); closeModal('ctx-modal')">
+      <span class="ctx-icon">📌</span><span>העבר לרשימה הקבועה</span>
+    </div>` : `<div class="ctx-option" onclick="demoteToOccasional('${esc(cat)}','${esc(item)}'); closeModal('ctx-modal')">
+      <span class="ctx-icon">🔽</span><span>העבר לפחות נפוצים</span>
+    </div>`}
+    <div class="ctx-option danger" onclick="removeItemPermanently('${esc(cat)}','${esc(item)}'); closeModal('ctx-modal')">
+      <span class="ctx-icon">🗑</span><span>הסר לגמרי</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('ctx-modal')">ביטול</button>
+    </div>
+  `;
+  document.getElementById("ctx-modal").classList.add("open");
+}
+
+function openChangeCat(cat, item, isOcc) {
+  const inner = document.getElementById("ctx-modal-inner");
+  const cats = allCategories();
+  const opts = cats.map(c => `<div class="ctx-cat-option${c===cat?' current':''}" onclick="moveItemToCategory('${esc(cat)}','${esc(item)}','${esc(c)}'); closeModal('ctx-modal')">${c}</div>`).join("");
+  inner.innerHTML = `
+    <button class="ctx-back" onclick="openContextMenu('${esc(cat)}','${esc(item)}','${isOcc}')">← חזרה</button>
+    <div class="ctx-title">בחר קטגוריה עבור "${item}"</div>
+    <div style="margin-top:14px" class="ctx-cat-list">${opts}</div>
+    <button class="btn-cancel" style="width:100%;margin-top:8px" onclick="closeModal('ctx-modal')">ביטול</button>
+  `;
+}
+
+function esc(s) { return s.replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
+
+async function moveItemToCategory(fromCat, item, toCat) {
+  if (fromCat === toCat) return;
+  const src = ensureCat(fromCat);
+  const isBuiltinFreq = (INITIAL_ITEMS[fromCat]?.frequent||[]).includes(item);
+  const isBuiltinOcc  = (INITIAL_ITEMS[fromCat]?.occasional||[]).includes(item);
+  if (isBuiltinFreq) { if (!src.hide_freq.includes(item)) src.hide_freq.push(item); }
+  if (isBuiltinOcc)  { if (!src.hide_occ.includes(item))  src.hide_occ.push(item); }
+  src.frequent   = src.frequent.filter(i => i !== item);
+  src.occasional = src.occasional.filter(i => i !== item);
+  const dst = ensureCat(toCat);
+  dst.hidden = dst.hidden.filter(i => i !== item);
+  if (!dst.frequent.includes(item)) dst.frequent.push(item);
+  if (checked[`${fromCat}||${item}`]) { checked[`${toCat}||${item}`] = true; delete checked[`${fromCat}||${item}`]; }
+  await saveToDB(); renderAll();
+}
+
+async function promoteToFrequent(cat, item) {
+  const ci = ensureCat(cat);
+  const isBuiltinOcc = (INITIAL_ITEMS[cat]?.occasional||[]).includes(item);
+  if (isBuiltinOcc) { if (!ci.hide_occ.includes(item)) ci.hide_occ.push(item); }
+  else { ci.occasional = ci.occasional.filter(i => i !== item); }
+  if (!ci.frequent.includes(item)) ci.frequent.push(item);
+  await saveToDB(); renderList();
+}
+
+async function demoteToOccasional(cat, item) {
+  const ci = ensureCat(cat);
+  const isBuiltinFreq = (INITIAL_ITEMS[cat]?.frequent||[]).includes(item);
+  if (isBuiltinFreq) { if (!ci.hide_freq.includes(item)) ci.hide_freq.push(item); }
+  else { ci.frequent = ci.frequent.filter(i => i !== item); }
+  if (!ci.occasional.includes(item)) ci.occasional.push(item);
+  await saveToDB(); renderList();
+}
+
+async function removeItemPermanently(cat, item) {
+  const ci = ensureCat(cat);
+  const isBuiltinFreq = (INITIAL_ITEMS[cat]?.frequent||[]).includes(item);
+  const isBuiltinOcc  = (INITIAL_ITEMS[cat]?.occasional||[]).includes(item);
+  if (isBuiltinFreq) { if (!ci.hide_freq.includes(item)) ci.hide_freq.push(item); }
+  if (isBuiltinOcc)  { if (!ci.hide_occ.includes(item))  ci.hide_occ.push(item); }
+  ci.frequent   = ci.frequent.filter(i => i !== item);
+  ci.occasional = ci.occasional.filter(i => i !== item);
+  if (!ci.hidden.includes(item)) ci.hidden.push(item);
+  delete checked[`${cat}||${item}`];
+  await saveToDB(); renderAll();
+}
+
+// ─── RENDER LIST ─────────────────────────────────────────
+let searchQuery = "";
+
+function onSearchInput(val) {
+  searchQuery = val.trim().toLowerCase();
+  const clearBtn = document.getElementById("search-clear");
+  if (clearBtn) clearBtn.style.display = searchQuery ? "block" : "none";
+  renderList();
+}
+
+function clearSearch() {
+  searchQuery = "";
+  const input = document.getElementById("search-input");
+  if (input) input.value = "";
+  const clearBtn = document.getElementById("search-clear");
+  if (clearBtn) clearBtn.style.display = "none";
+  const label = document.getElementById("search-label");
+  if (label) label.textContent = "";
+  renderList();
+}
+
+function renderList() {
+  const items = getItems();
+  const wrap = document.getElementById("list-inner") || document.getElementById("content-list");
+  wrap.innerHTML = "";
+  let totalResults = 0;
+
+  for (let [cat, {frequent, occasional}] of Object.entries(items)) {
+    // Filter by search query
+    if (searchQuery) {
+      frequent = frequent.filter(i => i.toLowerCase().includes(searchQuery));
+      occasional = occasional.filter(i => i.toLowerCase().includes(searchQuery));
+    }
+    if (!frequent.length && !occasional.length) continue;
+    totalResults += frequent.length + occasional.length;
+    const div = document.createElement("div");
+    div.className = "category";
+    div.innerHTML = `<div class="cat-title">${cat}</div>`;
+    const freqWrap = document.createElement("div");
+    freqWrap.className = "items-wrap";
+    for (const item of frequent) freqWrap.appendChild(makeItemEl(cat, item, false));
+    div.appendChild(freqWrap);
+    if (occasional.length > 0) {
+      const togBtn = document.createElement("button");
+      togBtn.className = "toggle-occasional";
+      const occWrap = document.createElement("div");
+      occWrap.className = "occasional-wrap items-wrap";
+      occWrap.style.display = showOccasional[cat] ? "flex" : "none";
+      togBtn.textContent = (showOccasional[cat]?"▲ הסתר":"▼ הצג")+" פריטים פחות נפוצים";
+      togBtn.onclick = () => {
+        showOccasional[cat] = !showOccasional[cat];
+        occWrap.style.display = showOccasional[cat]?"flex":"none";
+        togBtn.textContent = (showOccasional[cat]?"▲ הסתר":"▼ הצג")+" פריטים פחות נפוצים";
+      };
+      for (const item of occasional) occWrap.appendChild(makeItemEl(cat, item, true));
+      div.appendChild(togBtn);
+      div.appendChild(occWrap);
+    }
+    wrap.appendChild(div);
+  }
+
+  // Show results count or no-results
+  const label = document.getElementById("search-label");
+  if (label) {
+    if (searchQuery && totalResults === 0) {
+      wrap.innerHTML = '<div class="no-results">לא נמצאו מוצרים עבור<br><strong>"' + searchQuery + '"</strong></div>';
+      label.textContent = "";
+    } else if (searchQuery) {
+            label.textContent = totalResults + ' תוצאות';
+    } else {
+      label.textContent = "";
+    }
+  }
+}
+
+function makeItemEl(cat, item, isOcc) {
+  const btn = document.createElement("button");
+  const on = !!checked[`${cat}||${item}`];
+  btn.className = "item-btn"+(isOcc?" occasional":"")+(on?" checked":"");
+  btn.textContent = (on?"✓ ":"")+item;
+  btn.onclick = (e) => {
+    if (pressTimer) return; // was a long press start, ignore tap
+    const key = `${cat}||${item}`;
+    checked[key] = !checked[key];
+    // Optimistic update — paint immediately, save in background
+    btn.className = "item-btn"+(isOcc?" occasional":"")+(checked[key]?" checked":"");
+    btn.textContent = (checked[key]?"✓ ":"")+item;
+    updateSubtitle();
+    saveToDB(); // no await — fire and forget
+    // Clear search after selecting an item
+    if (searchQuery) clearSearch();
+  };
+  attachLongPress(btn, cat, item, isOcc);
+
+  if (!isOcc) return btn;
+  // Wrap occasional with pin button
+  const wrap = document.createElement("div");
+  wrap.className = "occ-wrap";
+  wrap.appendChild(btn);
+  const pin = document.createElement("button");
+  pin.className = "pin-btn"; pin.title = "העבר לקבועים"; pin.textContent = "📌";
+  pin.onclick = async (e) => { e.stopPropagation(); await promoteToFrequent(cat, item); };
+  wrap.appendChild(pin);
+  return wrap;
+}
+
+// ─── RENDER BASKET ───────────────────────────────────────
+function renderBasket() {
+  const checkedItems = getCheckedItems();
+  const wrap = document.getElementById("content-basket");
+  wrap.innerHTML = "";
+  if (!checkedItems.length) {
+    wrap.innerHTML = `<div class="empty-basket">🧺<br>הסל ריק.<br><span style="font-size:13px">עברו לרשימה ולחצו על פריטים.</span></div>`;
+    return;
+  }
+  const grouped = {};
+  checkedItems.forEach(({cat,item}) => { if (!grouped[cat]) grouped[cat]=[]; grouped[cat].push(item); });
+  for (const [cat,its] of Object.entries(grouped)) {
+    const catDiv = document.createElement("div");
+    catDiv.innerHTML = `<div class="basket-cat-title">${cat}</div>`;
+    for (const item of its) {
+      const row = document.createElement("div"); row.className = "basket-item";
+      const si=item.replace(/'/g,"\\'"), sc=cat.replace(/'/g,"\\'");
+      row.innerHTML = `<span>${item}</span><button class="btn-remove" onclick="removeFromBasket('${sc}','${si}')">✕</button>`;
+      catDiv.appendChild(row);
+    }
+    wrap.appendChild(catDiv);
+  }
+  const actions = document.createElement("div"); actions.className = "action-btns";
+  actions.innerHTML = `
+    <button class="btn-done" onclick="openDoneModal()">✅ בוצעה קנייה!</button>
+    <button class="btn-whatsapp" id="wa-btn" onclick="copyWA()">📤 העתק לוואטסאפ</button>
+    <button class="btn-clear" onclick="clearAll()">🗑 נקה הכל</button>
+  `;
+  wrap.appendChild(actions);
+}
+
+async function removeFromBasket(cat, item) {
+  checked[`${cat}||${item}`] = false;
+  renderBasket(); renderList(); updateSubtitle(); await saveToDB();
+}
+async function clearAll() {
+  checked = {}; renderBasket(); renderList(); updateSubtitle(); await saveToDB();
+}
+
+// ─── DONE MODAL ──────────────────────────────────────────
+function openDoneModal() {
+  const checkedItems = getCheckedItems(); if (!checkedItems.length) return;
+  notBoughtInModal = new Set();
+  const grouped = {};
+  checkedItems.forEach(({cat,item}) => { if (!grouped[cat]) grouped[cat]=[]; grouped[cat].push(item); });
+  const list = document.getElementById("modal-items-list"); list.innerHTML = "";
+  for (const [cat,its] of Object.entries(grouped)) {
+    const cl = document.createElement("div"); cl.className="modal-cat"; cl.textContent=cat; list.appendChild(cl);
+    for (const item of its) {
+      const row = document.createElement("div"); row.className="modal-item";
+      row.innerHTML=`<span>${item}</span><div class="chk"></div>`;
+      row.onclick = () => {
+        const key=`${cat}||${item}`;
+        if (notBoughtInModal.has(key)) { notBoughtInModal.delete(key); row.classList.remove("not-bought"); row.querySelector(".chk").textContent=""; }
+        else { notBoughtInModal.add(key); row.classList.add("not-bought"); row.querySelector(".chk").textContent="✕"; }
+      };
+      list.appendChild(row);
+    }
+  }
+  document.getElementById("done-modal").classList.add("open");
+}
+async function confirmDone() {
+  const newChecked = {};
+  for (const key of notBoughtInModal) newChecked[key] = true;
+  checked = newChecked; lastPurchaseTime = Date.now();
+  closeModal("done-modal"); renderAll(); await saveToDB();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+// ─── WHATSAPP ────────────────────────────────────────────
+function copyWA() {
+  const checkedItems = getCheckedItems(); if (!checkedItems.length) return;
+  const grouped = {};
+  checkedItems.forEach(({cat,item}) => { if (!grouped[cat]) grouped[cat]=[]; grouped[cat].push(item); });
+  const text = "🛒 *רשימת קניות*\n\n" + Object.entries(grouped).map(([cat,its])=>`${cat}\n${its.map(i=>`  • ${i}`).join("\n")}`).join("\n\n");
+  navigator.clipboard.writeText(text).then(() => {
+    const btn=document.getElementById("wa-btn");
+    if(btn){btn.textContent="✓ הועתק!";btn.classList.add("copied");setTimeout(()=>{btn.textContent="📤 העתק לוואטסאפ";btn.classList.remove("copied");},2500);}
+  });
+}
+
+// ─── ADD ITEM ────────────────────────────────────────────
+function buildCategorySelect() {
+  const sel=document.getElementById("new-item-cat"); sel.innerHTML="";
+  for (const cat of allCategories()) { const opt=document.createElement("option"); opt.value=cat; opt.textContent=cat; sel.appendChild(opt); }
+}
+async function addCustomItem() {
+  const name=document.getElementById("new-item-name").value.trim();
+  const cat=document.getElementById("new-item-cat").value;
+  if (!name) return;
+  // Check for duplicates across ALL categories
+  const allItems = getItems();
+  for (const [existingCat, {frequent, occasional}] of Object.entries(allItems)) {
+    if ([...frequent, ...occasional].map(i=>i.trim().toLowerCase()).includes(name.trim().toLowerCase())) {
+      alert(`"${name}" כבר קיים בקטגוריה: ${existingCat}`);
+      return;
+    }
+  }
+  const ci = ensureCat(cat);
+  ci.hidden = ci.hidden.filter(i => i !== name);
+  if (!ci.frequent.includes(name)) ci.frequent.push(name);
+  checked[`${cat}||${name}`]=true;
+  document.getElementById("new-item-name").value="";
+  renderList(); updateSubtitle(); await saveToDB();
+}
+
+// ─── LAST PURCHASE ───────────────────────────────────────
+function renderLastPurchase() {
+  const bar=document.getElementById("last-purchase-bar");
+  if (!lastPurchaseTime) { bar.innerHTML=""; return; }
+  const hours=Math.floor((Date.now()-lastPurchaseTime)/(1000*60*60));
+  const days=Math.floor(hours/24);
+  const text = hours<1?"לפני פחות משעה" : hours<24?`לפני ${hours} שעות` : days===1?"אתמול":`לפני ${days} ימים`;
+  bar.innerHTML=`<div class="last-purchase">🗓 קנייה אחרונה: ${text}</div>`;
+}
+
+// ─── UTILS ───────────────────────────────────────────────
+function updateSubtitle() {
+  const n=getCheckedItems().length;
+  document.getElementById("subtitle").textContent=`${n} פריטים נבחרו`;
+  document.getElementById("tab-basket").textContent=`🧺 סל (${n})`;
+}
+function renderAll() {
+  renderList(); updateSubtitle(); renderLastPurchase();
+  if (document.getElementById("content-basket").classList.contains("active")) renderBasket();
+}
+
+// ─── PWA ─────────────────────────────────────────────────
+window.addEventListener("beforeinstallprompt",(e)=>{ e.preventDefault(); deferredPrompt=e; document.getElementById("install-banner").style.display="flex"; });
+function installApp() { if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;dismissInstall();});} }
+function dismissInstall() { document.getElementById("install-banner").style.display="none"; }
+
+// EVENT LISTS JS - safe ASCII only for emoji using HTML approach
+let evActiveList = null;
+let evImportTarget = null;
+
+function saveEventLists() {
+  dbSet(safeKey(), { checked, customItems, lastPurchaseTime, eventLists });
+}
+
+function renderEventsTab() {
+  const wrap = document.getElementById('content-events');
+  if (!wrap) return;
+  wrap.style.padding = '12px 16px';
+  wrap.innerHTML = '';
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
+  hdr.innerHTML = '<button style="background:#7b3fa0;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit" onclick="evShowNewForm()">+ \u05e8\u05e9\u05d9\u05de\u05d4 \u05d7\u05d3\u05e9\u05d4</button><h3 style="font-size:17px;font-weight:bold;color:#2d2d2d">\u05d0\u05d9\u05e8\u05d5\u05e2\u05d9\u05dd</h3>';
+  wrap.appendChild(hdr);
+  if (eventLists.length === 0) {
+    const em = document.createElement('div');
+    em.style.cssText = 'text-align:center;color:#aaa;margin-top:40px;font-size:15px;line-height:2';
+    em.innerHTML = '\u05d0\u05d9\u05df \u05e8\u05e9\u05d9\u05de\u05d5\u05ea \u05e2\u05d3\u05d9\u05d9\u05df.<br><span style="font-size:13px">\u05e6\u05d5\u05e8 \u05e8\u05e9\u05d9\u05de\u05d4 \u05d7\u05d3\u05e9\u05d4!</span>';
+    wrap.appendChild(em);
+    return;
+  }
+  eventLists.forEach(function(list) {
+    if (!list.items) list.items = [];
+    var done = list.items.filter(function(i){return i.done;}).length;
+    var total = list.items.length;
+    var pct = total ? Math.round(done/total*100) : 0;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer';
+    card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-size:12px;color:#aaa">' + (list.date||'') + '</div><div style="font-size:16px;font-weight:bold;color:#2d2d2d;text-align:right">' + list.name + '</div></div><div style="font-size:13px;color:#888;margin:6px 0 10px;text-align:right">' + done + '/' + total + ' \u05d4\u05d5\u05e9\u05dc\u05de\u05d5 &middot; ' + (total-done) + ' \u05e0\u05d5\u05ea\u05e8\u05d5</div><div style="background:#f0e6fa;border-radius:10px;height:6px;overflow:hidden"><div style="background:#7b3fa0;height:100%;border-radius:10px;width:' + pct + '%"></div></div>';
+    (function(lid){ card.onclick = function(){ evActiveList=lid; renderEvDetail(lid); }; })(list.id);
+    wrap.appendChild(card);
+  });
+}
+
+function evShowNewForm() {
+  var wrap = document.getElementById('content-events');
+  var existing = document.getElementById('ev-new-form');
+  if (existing) { existing.remove(); return; }
+  var box = document.createElement('div');
+  box.id = 'ev-new-form';
+  box.style.cssText = 'background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:12px';
+  box.innerHTML = '<div style="font-size:14px;font-weight:bold;color:#7b3fa0;margin-bottom:10px">\u05e8\u05e9\u05d9\u05de\u05d4 \u05d7\u05d3\u05e9\u05d4</div><input id="ev-new-name" type="text" placeholder="\u05dc\u05d3\u05d5\u05d2\u05de\u05d0: \u05d9\u05d5\u05dd \u05d4\u05d5\u05dc\u05d3\u05ea \u05e9\u05dc \u05e9\u05d9\u05e8\u05d4" style="width:100%;padding:10px 12px;border:1.5px solid #7b3fa0;border-radius:10px;font-size:15px;font-family:inherit;direction:rtl;margin-bottom:10px;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\') evCreateList()" /><div style="display:flex;gap:8px"><button onclick="document.getElementById(\'ev-new-form\').remove()" style="flex:1;background:#fff;color:#888;border:1.5px solid #ddd;border-radius:10px;padding:10px;cursor:pointer;font-family:inherit">\u05d1\u05d9\u05d8\u05d5\u05dc</button><button onclick="evCreateList()" style="flex:2;background:#7b3fa0;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:bold;cursor:pointer;font-family:inherit">\u05e6\u05d5\u05e8</button></div>';
+  var hdr = wrap.firstChild;
+  if (hdr && hdr.nextSibling) wrap.insertBefore(box, hdr.nextSibling);
+  else wrap.appendChild(box);
+  document.getElementById('ev-new-name').focus();
+}
+
+function evCreateList() {
+  var name = document.getElementById('ev-new-name') && document.getElementById('ev-new-name').value.trim();
+  if (!name) return;
+  var now = new Date();
+  var date = now.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});
+  var newList = { id: Date.now().toString(), name: name, date: date, items: [] };
+  eventLists.push(newList);
+  saveEventLists();
+  evActiveList = newList.id;
+  renderEvDetail(newList.id);
+}
+
+function renderEvDetail(listId) {
+  var list = null;
+  for (var i = 0; i < eventLists.length; i++) {
+    if (eventLists[i].id === listId) { list = eventLists[i]; break; }
+  }
+  if (!list) return;
+
+  var wrap = document.getElementById('content-events');
+  wrap.style.padding = '0';
+  wrap.innerHTML = '';
+
+  if (!list.items) list.items = [];
+  var done = list.items.filter(function(i){ return i.done; }).length;
+  var total = list.items.length;
+  var pct = total ? Math.round(done / total * 100) : 0;
+
+  // ── Header ──
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'background:#7b3fa0;color:#fff;padding:16px 20px 14px';
+
+  var backBtn = document.createElement('button');
+  backBtn.textContent = '← חזרה';
+  backBtn.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px';
+  backBtn.onclick = function() {
+    evActiveList = null;
+    document.getElementById('content-events').style.padding = '';
+    renderEventsTab();
+  };
+
+  var titleDiv = document.createElement('div');
+  titleDiv.style.textAlign = 'right';
+  titleDiv.innerHTML = '<div style="font-size:19px;font-weight:bold">' + list.name + '</div><div style="font-size:12px;opacity:.8;margin-top:2px">' + done + '/' + total + ' הושלמו</div>';
+
+  var topRow = document.createElement('div');
+  topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+  topRow.appendChild(backBtn);
+  topRow.appendChild(titleDiv);
+  hdr.appendChild(topRow);
+
+  var progBg = document.createElement('div');
+  progBg.style.cssText = 'background:rgba(255,255,255,.2);border-radius:10px;height:6px;margin-top:12px;overflow:hidden';
+  var progFill = document.createElement('div');
+  progFill.style.cssText = 'background:#fff;height:100%;border-radius:10px;width:' + pct + '%';
+  progBg.appendChild(progFill);
+  hdr.appendChild(progBg);
+  wrap.appendChild(hdr);
+
+  // ── Body ──
+  var body = document.createElement('div');
+  body.style.padding = '16px';
+
+  // Empty message or items
+  if (list.items.length === 0) {
+    var emptyMsg = document.createElement('div');
+    emptyMsg.style.cssText = 'text-align:center;color:#aaa;padding:30px 0;font-size:15px';
+    emptyMsg.textContent = 'הרשימה ריקה — הוסף פריטים';
+    body.appendChild(emptyMsg);
+  } else {
+    list.items.forEach(function(item) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.07);direction:rtl' + (item.done ? ';opacity:.55' : '');
+
+      var delBtn = document.createElement('button');
+      delBtn.textContent = 'X';
+      delBtn.style.cssText = 'background:none;border:none;color:#ddd;font-size:15px;cursor:pointer;padding:0 4px';
+      (function(lid, iid){ delBtn.onclick = function(){ evDelItem(lid, iid); }; })(list.id, item.id);
+
+      var txt = document.createElement('span');
+      txt.textContent = item.text;
+      txt.style.cssText = 'font-size:15px;flex:1;text-align:right;margin-right:10px' + (item.done ? ';text-decoration:line-through' : '');
+
+      var chk = document.createElement('div');
+      chk.style.cssText = 'width:26px;height:26px;border-radius:8px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid ' + (item.done ? '#7b3fa0;background:#7b3fa0;color:#fff' : '#ccc;background:#fff;color:#fff');
+      chk.textContent = item.done ? '✓' : '';
+      (function(lid, iid){ chk.onclick = function(){ evToggleItem(lid, iid); }; })(list.id, item.id);
+
+      row.appendChild(delBtn);
+      row.appendChild(txt);
+      row.appendChild(chk);
+      body.appendChild(row);
+    });
+  }
+
+  // ── Add item row ──
+  var addRow = document.createElement('div');
+  addRow.style.cssText = 'display:flex;gap:8px;margin-top:16px';
+
+  var addBtn = document.createElement('button');
+  addBtn.textContent = 'הוסף';
+  addBtn.style.cssText = 'background:#7b3fa0;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit;flex-shrink:0';
+  (function(lid){ addBtn.onclick = function(){ evAddItem(lid); }; })(listId);
+
+  var addInput = document.createElement('input');
+  addInput.type = 'text';
+  addInput.id = 'ev-input-' + listId;
+  addInput.placeholder = 'פריט חדש...';
+  addInput.style.cssText = 'flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;direction:rtl;text-align:right';
+  (function(lid){ addInput.onkeydown = function(e){ if(e.key==='Enter') evAddItem(lid); }; })(listId);
+
+  addRow.appendChild(addBtn);
+  addRow.appendChild(addInput);
+  body.appendChild(addRow);
+
+  // ── Action buttons ──
+  var acts = document.createElement('div');
+  acts.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-top:20px';
+
+  var waBtn = document.createElement('button');
+  waBtn.id = 'ev-wa-' + listId;
+  waBtn.textContent = 'העתק לוואטסאפ';
+  waBtn.style.cssText = 'background:#25D366;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit;width:100%';
+  (function(lid){ waBtn.onclick = function(){ evCopyWA(lid); }; })(listId);
+
+  var importBtn = document.createElement('button');
+  importBtn.textContent = 'ייבוא מטקסט';
+  importBtn.style.cssText = 'background:#fff;color:#7b3fa0;border:1.5px solid #7b3fa0;border-radius:12px;padding:12px;font-size:14px;cursor:pointer;font-family:inherit;width:100%';
+  (function(lid){ importBtn.onclick = function(){ evOpenImport(lid); }; })(listId);
+
+  var delBtn2 = document.createElement('button');
+  delBtn2.textContent = 'מחק רשימה זו';
+  delBtn2.style.cssText = 'background:#fff;color:#cc4444;border:1.5px solid #cc4444;border-radius:12px;padding:12px;font-size:14px;cursor:pointer;font-family:inherit;width:100%';
+  (function(lid){ delBtn2.onclick = function(){ evDelList(lid); }; })(listId);
+
+  acts.appendChild(waBtn);
+  acts.appendChild(importBtn);
+  acts.appendChild(delBtn2);
+  body.appendChild(acts);
+  wrap.appendChild(body);
+}
+
+function evToggleItem(listId, itemId) {
+  var list = null;
+  for (var i=0;i<eventLists.length;i++) { if (eventLists[i].id===listId) { list=eventLists[i]; break; } }
+  if (!list) return;
+  for (var j=0;j<list.items.length;j++) { if (list.items[j].id===itemId) { list.items[j].done=!list.items[j].done; break; } }
+  saveEventLists();
+  renderEvDetail(listId);
+}
+
+function evAddItem(listId) {
+  var input = document.getElementById('ev-input-' + listId);
+  var text = input && input.value.trim();
+  if (!text) return;
+  var list = null;
+  for (var i=0;i<eventLists.length;i++) { if (eventLists[i].id===listId) { list=eventLists[i]; break; } }
+  if (!list) return;
+  list.items.push({ id: Date.now().toString() + Math.random().toString(36).slice(2), text: text, done: false });
+  saveEventLists();
+  renderEvDetail(listId);
+}
+
+function evDelItem(listId, itemId) {
+  var list = null;
+  for (var i=0;i<eventLists.length;i++) { if (eventLists[i].id===listId) { list=eventLists[i]; break; } }
+  if (!list) return;
+  list.items = list.items.filter(function(i){ return i.id !== itemId; });
+  saveEventLists();
+  renderEvDetail(listId);
+}
+
+function evDelList(listId) {
+  if (!confirm('\u05dc\u05de\u05d7\u05d5\u05e7 \u05d0\u05ea \u05d4\u05e8\u05e9\u05d9\u05de\u05d4 \u05dc\u05d2\u05de\u05e8\u05d9?')) return;
+  eventLists = eventLists.filter(function(l){ return l.id !== listId; });
+  saveEventLists();
+  evActiveList = null;
+  document.getElementById('content-events').style.padding = '';
+  renderEventsTab();
+}
+
+function evCopyWA(listId) {
+  var list = null;
+  for (var i=0;i<eventLists.length;i++) { if (eventLists[i].id===listId) { list=eventLists[i]; break; } }
+  if (!list) return;
+  var lines = list.items.map(function(i){ return '  ' + (i.done ? '\u2713' : '\u2022') + ' ' + i.text; }).join('\n');
+  var text = '\u{1F4DD} *' + list.name + '*\n\n' + lines;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('ev-wa-' + listId);
+    if (btn) { var orig = btn.textContent; btn.textContent = '\u2713 \u05d4\u05d5\u05e2\u05ea\u05e7!'; setTimeout(function(){ btn.textContent = orig; }, 2500); }
+  });
+}
+
+function evOpenImport(listId) {
+  evImportTarget = listId;
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-modal').classList.add('open');
+}
+
+function doImportText() {
+  var raw = document.getElementById('import-textarea').value;
+  var lines = raw.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+  if (!lines.length || !evImportTarget) return;
+  var list = null;
+  for (var i=0;i<eventLists.length;i++) { if (eventLists[i].id===evImportTarget) { list=eventLists[i]; break; } }
+  if (!list) return;
+  lines.forEach(function(text) {
+    list.items.push({ id: Date.now().toString()+Math.random().toString(36).slice(2), text: text, done: false });
+  });
+  closeModal('import-modal');
+  saveEventLists();
+  renderEvDetail(evImportTarget);
+}
+
+
+// ─── INIT ────────────────────────────────────────
+buildCategorySelect();
+renderAll();
+loadFromDB().then(startRealtimeSync);
+</script>
+</body>
+</html>

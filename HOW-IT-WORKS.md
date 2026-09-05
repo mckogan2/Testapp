@@ -137,29 +137,42 @@ Google watches that path. The instant it changes, this function runs. It
 receives *both* versions — the data before the change and after — and
 compares them to work out precisely which items flipped.
 
-For each item that changed, it writes a small note elsewhere in the
-database:
+For each item that changed, it keeps **one record per item** (not one
+per tap), remembering the state that item was in when the current
+3-minute window began, plus the state it's in now:
 
 ```json
-{ "item": "בננות", "checked": true, "at": 1757090000000 }
+{ "item": "בננות", "before": false, "after": true }
 ```
 
-Then it stops. **It does not send anything.** It's purely a scribe —
-it keeps a running list of "stuff that happened recently."
+If the same item is tapped again before the next digest, only `after` is
+updated — `before` stays as it was.
+
+Then it stops. **It does not send anything.** It's purely a scribe.
+
+> **Why per-item and not per-tap?** The first version logged every tap,
+> so ticking one item on and off three times produced six notes and a
+> notification announcing six changes — for an item that ended up
+> exactly where it started. Tracking state instead of events means the
+> question becomes "is this item different from where it started?",
+> which is the thing a human actually cares about.
 
 ### `sendDigest` — the messenger
 
 **Trigger:** schedule — "every 3 minutes"
 
 Every 3 minutes, regardless of whether anything happened, this wakes up
-and checks the notes:
+and checks the records:
 
-- **No notes?** Do nothing, go back to sleep. (Most of the day.)
-- **Some notes?** Combine them into one message, send it to every
-  registered phone, then **erase the notes** so they aren't sent twice.
+- **Nothing recorded?** Go back to sleep. (Most of the day.)
+- **Something recorded?** Keep only the items where `before` and `after`
+  actually differ, combine those into one message, send it to every
+  registered phone, then **erase the records** so nothing is sent twice.
 
 So if you tick five things in one shopping trip, you get *one*
-notification listing five items — not five separate buzzes.
+notification listing five items — not five separate buzzes. And if you
+tick something and then untick it before the next digest, it's not
+mentioned at all, because nothing really changed.
 
 ### Why two functions instead of one?
 
@@ -232,7 +245,7 @@ automatically.
 flowchart TD
     A["You tick 'bananas'<br/>app or website"] --> B[("Realtime Database<br/>/families/.../checked")]
     B -- "changed!" --> C["logCheckedChanges<br/>runs instantly"]
-    C --> D[("Note saved<br/>/notifyState/.../pendingChanges")]
+    C --> D[("Per-item state saved<br/>/notifyState/.../pendingChanges")]
     E["⏰ Every 3 minutes"] --> F["sendDigest wakes up"]
     D -. reads .-> F
     F --> G{"Any notes?"}

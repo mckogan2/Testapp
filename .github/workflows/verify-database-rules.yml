@@ -1,0 +1,80 @@
+# Checks the deployed database rules from the outside, exactly as an
+# anonymous stranger would see them.
+#
+# This exists because the failure mode is silent: the web page's save is
+# fire-and-forget and swallows errors, so rules that are too strict make
+# the app *look* fine while quietly not persisting anything. These
+# checks prove the app can still write, and that everything else can't.
+#
+# Safe to run any time — it never changes real data. The only write it
+# makes to the live list is putting a value back to what it already was.
+name: Verify Database Rules
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check rules behave as intended
+        run: |
+          DB="https://family-grocery-list-bd6e3-default-rtdb.firebaseio.com"
+          FAMILY="my_family_shopping_list_2024"
+          fails=0
+
+          # expect <description> <expected: allow|deny> <curl args...>
+          expect() {
+            desc="$1"; want="$2"; shift 2
+            code=$(curl -s -o /tmp/body.txt -w "%{http_code}" "$@")
+            if [ "$code" = "200" ]; then got="allow"; else got="deny"; fi
+            if [ "$got" = "$want" ]; then
+              echo "  PASS  $desc (HTTP $code)"
+            else
+              echo "  FAIL  $desc — wanted $want, got $got (HTTP $code)"
+              echo "        $(head -c 200 /tmp/body.txt)"
+              fails=$((fails + 1))
+            fi
+          }
+
+          echo "=== The app must still work ==="
+          expect "read the shopping list" allow "$DB/families/$FAMILY/checked.json"
+
+          # Idempotent: read lastPurchaseTime and write the same value back.
+          CURRENT=$(curl -s "$DB/families/$FAMILY/lastPurchaseTime.json")
+          expect "write to the list (value unchanged)" allow \
+            -X PUT -d "$CURRENT" "$DB/families/$FAMILY/lastPurchaseTime.json"
+
+          # Same shape the Android app registers with.
+          FAKE_ID=$(printf 'ci-verification-token' | sha256sum | cut -c1-64)
+          expect "register a device token" allow \
+            -X PUT -d '{"token":"ci-verification-placeholder-token-value","updatedAt":1}' \
+            "$DB/notifyState/$FAMILY/deviceTokens/$FAKE_ID.json"
+
+          echo
+          echo "=== Strangers must be blocked ==="
+          expect "read everyone's device tokens" deny "$DB/notifyState.json"
+          expect "read this family's device tokens" deny \
+            "$DB/notifyState/$FAMILY/deviceTokens.json"
+          expect "delete a device token" deny \
+            -X DELETE "$DB/notifyState/$FAMILY/deviceTokens/$FAKE_ID.json"
+          expect "use the database as free storage" deny \
+            -X PUT -d '{"junk":true}' "$DB/attacker_playground.json"
+          expect "create a different family" deny \
+            -X PUT -d '{"checked":{}}' "$DB/families/not_your_family.json"
+          expect "corrupt the list with non-boolean data" deny \
+            -X PUT -d '"not-a-boolean"' \
+            "$DB/families/$FAMILY/checked/junk%7C%7Cjunk.json"
+          expect "add an unexpected field to the list" deny \
+            -X PUT -d '"payload"' "$DB/families/$FAMILY/injected.json"
+          expect "write a malformed device token" deny \
+            -X PUT -d '{"token":"x","updatedAt":1}' \
+            "$DB/notifyState/$FAMILY/deviceTokens/not-a-valid-id.json"
+
+          echo
+          if [ "$fails" -eq 0 ]; then
+            echo "All checks passed — the app still works and strangers are blocked."
+          else
+            echo "$fails check(s) failed. Rules need adjusting before relying on them."
+            exit 1
+          fi

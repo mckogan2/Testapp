@@ -1,0 +1,79 @@
+// Realtime Database security rules.
+//
+// Default is deny-everything; access is granted only on the exact paths
+// the app actually uses. That alone stops the database being used as
+// free storage, and stops anyone enumerating the family's push tokens.
+//
+// The shopping list itself stays publicly readable and writable, because
+// the app has no sign-in and so no way to tell family from stranger.
+// Making the list private requires adding authentication first.
+//
+// Cloud Functions use the Admin SDK, which bypasses these rules
+// entirely, so logCheckedChanges and sendDigest are unaffected.
+//
+// NOTE: the family key is hardcoded below. If FAMILY_KEY in
+// assets/www/index.html ever changes, change it here too, or the app
+// will silently stop saving (its save swallows errors).
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "families": {
+      "my_family_shopping_list_2024": {
+        ".read": true,
+        ".write": true,
+
+        // The app only ever writes true/false here.
+        "checked": {
+          "$itemKey": {
+            ".validate": "newData.isBoolean()"
+          }
+        },
+
+        "lastPurchaseTime": {
+          ".validate": "newData.isNumber()"
+        },
+
+        // customItems and eventLists are deliberately left unvalidated.
+        // The page rewrites both subtrees wholesale on every save, and
+        // their shapes are awkward to express here — a rule that's even
+        // slightly wrong would make every save fail silently. They're
+        // listed so the "$other" catch-all below doesn't reject them.
+        "customItems": {},
+        "eventLists": {},
+
+        // Reject any key the app doesn't actually write.
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    // Push-notification bookkeeping. Never readable by clients: the
+    // device tokens live here, and nothing legitimate reads them — the
+    // web page never touches this path, and the Android app only writes
+    // its own token.
+    //
+    // pendingChanges is intentionally absent, so clients can neither
+    // read nor write it. Only the Cloud Functions use it, and they
+    // bypass rules.
+    "notifyState": {
+      "my_family_shopping_list_2024": {
+        "deviceTokens": {
+          // The app keys each token by the SHA-256 hex of the token, so
+          // a valid id is exactly 64 hex characters. Requiring
+          // newData.exists() blocks deletion, so nobody can wipe the
+          // family's tokens and silently kill notifications for everyone.
+          "$tokenId": {
+            ".write": "$tokenId.matches(/^[0-9a-f]{64}$/) && newData.exists()",
+            ".validate": "newData.hasChildren(['token', 'updatedAt']) && newData.child('token').isString() && newData.child('token').val().length > 20 && newData.child('token').val().length < 4096 && newData.child('updatedAt').isNumber()",
+            "$field": {
+              ".validate": "$field == 'token' || $field == 'updatedAt'"
+            }
+          }
+        }
+      }
+    }
+  }
+}

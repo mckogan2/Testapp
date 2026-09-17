@@ -3,112 +3,568 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Notification Test App</title>
+<title>Sleep Tracker</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --accent: #38bdf8;
+    --accent-strong: #0ea5e9;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --good: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
   body {
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
     max-width: 480px;
-    margin: 80px auto;
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 4px;
     text-align: center;
-    color: #222;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: 0 0 24px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .actions {
+    display: flex;
+    gap: 12px;
   }
   button {
     font-size: 1rem;
-    padding: 12px 24px;
-    border-radius: 8px;
+    font-weight: 600;
+    padding: 14px 12px;
+    border-radius: 10px;
     border: none;
-    background: #2563eb;
-    color: white;
     cursor: pointer;
-    margin: 8px;
+    flex: 1;
+  }
+  .btn-sleep {
+    background: #312e81;
+    color: #e0e7ff;
+  }
+  .btn-wake {
+    background: var(--accent-strong);
+    color: #fff;
   }
   button:disabled {
-    background: #9ca3af;
+    background: #334155;
+    color: #64748b;
     cursor: not-allowed;
   }
-  #status {
-    margin-top: 24px;
-    color: #555;
+  .status-line {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    text-align: center;
+  }
+  .banner {
+    background: #422006;
+    border: 1px solid var(--warn);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+  .banner .row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .banner button {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+  .btn-confirm { background: var(--good); color: #052e1a; }
+  .btn-adjust { background: var(--accent); color: #052e1a; }
+  .btn-dismiss { background: #334155; color: var(--text-dim); }
+
+  h2 {
+    font-size: 1rem;
+    margin: 0 0 12px;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  .bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+  }
+  .bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+  }
+  .bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    background: var(--accent);
+  }
+  .bar-day {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .night-row {
+    padding: 10px 0;
+    border-top: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .night-row:first-child { border-top: none; }
+  .night-info { font-size: 0.9rem; }
+  .night-date { color: var(--text-dim); font-size: 0.75rem; }
+  .night-dur { font-weight: 600; }
+  .tag {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #334155;
+    color: var(--text-dim);
+    margin-left: 6px;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    padding: 6px 8px;
+    cursor: pointer;
+    flex: none;
+  }
+  .icon-btn:hover { color: var(--text); }
+
+  .edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .edit-form label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 2px;
+  }
+  .edit-form input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .edit-form .row { display: flex; gap: 8px; }
+  .edit-form .row > div { flex: 1; }
+  .form-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .form-actions button { padding: 8px; font-size: 0.85rem; }
+  .btn-save { background: var(--good); color: #052e1a; }
+  .btn-cancel { background: #334155; color: var(--text-dim); }
+  .btn-delete { background: var(--bad); color: #450a0a; }
+
+  .empty {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 8px 0;
+  }
+  .note {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+  #addNightToggle {
+    background: none;
+    border: 1px dashed #334155;
+    color: var(--text-dim);
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
   }
 </style>
 </head>
 <body>
-  <h1>Notification Test</h1>
-  <p>Click the button to request permission and fire a test browser notification.</p>
-  <p id="iosNote" hidden>On iPhone/iPad, Safari only allows notifications for sites added to the
-    Home Screen: tap Share &rarr; Add to Home Screen, then open the app from there and try again.</p>
-  <button id="requestBtn">Enable Notifications</button>
-  <button id="sendBtn" disabled>Send Test Notification</button>
-  <p id="status"></p>
+  <h1>🌙 Sleep Tracker</h1>
+  <p class="subtitle">Log your nights and see how much sleep you're actually getting</p>
+
+  <div id="gapBanner"></div>
+
+  <div class="card">
+    <div class="actions">
+      <button id="sleepBtn" class="btn-sleep">😴 Going to sleep</button>
+      <button id="wakeBtn" class="btn-wake" disabled>☀️ I'm awake</button>
+    </div>
+    <p class="status-line" id="statusLine"></p>
+  </div>
+
+  <div class="card">
+    <h2>This week</h2>
+    <div class="stat-row">
+      <div>
+        <div class="stat-value" id="avgDuration">–</div>
+        <div class="stat-label">avg / night (last 7 logged)</div>
+      </div>
+    </div>
+    <div class="bars" id="barsContainer"></div>
+  </div>
+
+  <div class="card">
+    <h2>History</h2>
+    <div id="historyList"></div>
+    <button id="addNightToggle">+ Add a past night manually</button>
+    <div id="addNightForm"></div>
+  </div>
+
+  <p class="note">
+    This runs as a browser app, so it can only see activity while it's open on
+    your screen — it can't sense your phone while it's locked. Automatic
+    suggestions come from noticing long quiet gaps while the app is open;
+    the sleep/wake buttons are the reliable way to log a night. Everything
+    is stored only on this device.
+  </p>
 
 <script>
-  const requestBtn = document.getElementById('requestBtn');
-  const sendBtn = document.getElementById('sendBtn');
-  const status = document.getElementById('status');
-  const iosNote = document.getElementById('iosNote');
+  const NIGHTS_KEY = 'sleepTracker.nights';
+  const PENDING_KEY = 'sleepTracker.pendingBedtime';
+  const LAST_ACTIVITY_KEY = 'sleepTracker.lastActivity';
+  const DISMISSED_KEY = 'sleepTracker.dismissedGapStart';
+  const GAP_THRESHOLD_MS = 3 * 60 * 60 * 1000; // 3 hours of quiet counts as a candidate sleep gap
 
-  function setStatus(text) {
-    status.textContent = text;
-  }
+  const sleepBtn = document.getElementById('sleepBtn');
+  const wakeBtn = document.getElementById('wakeBtn');
+  const statusLine = document.getElementById('statusLine');
+  const gapBanner = document.getElementById('gapBanner');
+  const avgDuration = document.getElementById('avgDuration');
+  const barsContainer = document.getElementById('barsContainer');
+  const historyList = document.getElementById('historyList');
+  const addNightToggle = document.getElementById('addNightToggle');
+  const addNightForm = document.getElementById('addNightForm');
 
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  if (isIos && !isStandalone) {
-    iosNote.hidden = false;
-  }
-
-  let swRegistration = null;
-
-  async function init() {
-    if (!('Notification' in window)) {
-      setStatus('This browser does not support notifications.');
-      requestBtn.disabled = true;
-      return;
-    }
-
-    if ('serviceWorker' in navigator) {
-      try {
-        swRegistration = await navigator.serviceWorker.register('service-worker.js');
-        await navigator.serviceWorker.ready;
-      } catch (err) {
-        console.error('Service worker registration failed', err);
-      }
-    }
-
-    setStatus(`Current permission: ${Notification.permission}`);
-    sendBtn.disabled = Notification.permission !== 'granted';
-  }
-
-  requestBtn.addEventListener('click', async () => {
-    const permission = await Notification.requestPermission();
-    setStatus(`Current permission: ${permission}`);
-    sendBtn.disabled = permission !== 'granted';
-  });
-
-  sendBtn.addEventListener('click', async () => {
-    const options = {
-      body: 'This is a test notification from Notification Test App.',
-      icon: 'icon.svg'
-    };
-
+  function loadNights() {
     try {
-      if (swRegistration) {
-        // Mobile browsers (Chrome/Firefox for Android) require notifications
-        // to be shown via a Service Worker; the plain constructor below throws there.
-        await swRegistration.showNotification('Test Notification', options);
-      } else {
-        new Notification('Test Notification', options);
-      }
-      setStatus('Notification sent.');
-    } catch (err) {
-      setStatus(`Failed to send notification: ${err.message}`);
+      return JSON.parse(localStorage.getItem(NIGHTS_KEY)) || [];
+    } catch {
+      return [];
     }
+  }
+  function saveNights(nights) {
+    nights.sort((a, b) => new Date(b.bedtime) - new Date(a.bedtime));
+    localStorage.setItem(NIGHTS_KEY, JSON.stringify(nights));
+  }
+  function addNight(night) {
+    const nights = loadNights();
+    nights.push(night);
+    saveNights(nights);
+    render();
+  }
+  function updateNight(id, patch) {
+    const nights = loadNights();
+    const idx = nights.findIndex((n) => n.id === id);
+    if (idx === -1) return;
+    nights[idx] = { ...nights[idx], ...patch };
+    saveNights(nights);
+    render();
+  }
+  function deleteNight(id) {
+    saveNights(loadNights().filter((n) => n.id !== id));
+    render();
+  }
+
+  function fmtTime(iso) {
+    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  function fmtDate(iso) {
+    return new Date(iso).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  function durationMinutes(bedtime, wake) {
+    return Math.max(0, Math.round((new Date(wake) - new Date(bedtime)) / 60000));
+  }
+  function fmtDuration(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+  }
+  // A night that starts before noon is labeled by the previous calendar day.
+  function nightLabelDate(bedtimeIso) {
+    const d = new Date(bedtimeIso);
+    if (d.getHours() < 12) d.setDate(d.getDate() - 1);
+    return d;
+  }
+
+  // ---- Manual logging ----
+  function refreshButtons() {
+    const pending = localStorage.getItem(PENDING_KEY);
+    sleepBtn.disabled = !!pending;
+    wakeBtn.disabled = !pending;
+    if (pending) {
+      statusLine.textContent = `Logged bedtime at ${fmtTime(pending)} — tap "I'm awake" when you get up.`;
+    } else {
+      statusLine.textContent = '';
+    }
+  }
+
+  sleepBtn.addEventListener('click', () => {
+    localStorage.setItem(PENDING_KEY, new Date().toISOString());
+    refreshButtons();
   });
 
-  init();
+  wakeBtn.addEventListener('click', () => {
+    const pending = localStorage.getItem(PENDING_KEY);
+    if (!pending) return;
+    localStorage.removeItem(PENDING_KEY);
+    addNight({
+      id: crypto.randomUUID(),
+      bedtime: pending,
+      wake: new Date().toISOString(),
+      source: 'manual',
+    });
+    refreshButtons();
+  });
+
+  // ---- Automatic inactivity-gap detection ----
+  function checkForGap() {
+    const now = Date.now();
+    const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+    const dismissed = localStorage.getItem(DISMISSED_KEY);
+    if (lastActivity) {
+      const gapMs = now - new Date(lastActivity).getTime();
+      const startHour = new Date(lastActivity).getHours();
+      const looksLikeNight = startHour >= 20 || startHour < 8;
+      const alreadyLogged = loadNights().some((n) => n.bedtime === lastActivity);
+      const alreadyDismissed = dismissed === lastActivity;
+      const noPendingBedtime = !localStorage.getItem(PENDING_KEY);
+      if (gapMs >= GAP_THRESHOLD_MS && looksLikeNight && !alreadyLogged && !alreadyDismissed && noPendingBedtime) {
+        showGapBanner(lastActivity, new Date(now).toISOString());
+      }
+    }
+    localStorage.setItem(LAST_ACTIVITY_KEY, new Date(now).toISOString());
+  }
+
+  function showGapBanner(startIso, endIso) {
+    gapBanner.innerHTML = `
+      <div class="banner">
+        It looks like this was quiet from <strong>${fmtTime(startIso)}</strong> to
+        <strong>${fmtTime(endIso)}</strong> (${fmtDuration(durationMinutes(startIso, endIso))}).
+        Were you asleep?
+        <div class="row">
+          <button class="btn-confirm" id="gapConfirm">Yes, log it</button>
+          <button class="btn-adjust" id="gapAdjust">Adjust</button>
+          <button class="btn-dismiss" id="gapDismiss">No</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('gapConfirm').addEventListener('click', () => {
+      addNight({ id: crypto.randomUUID(), bedtime: startIso, wake: endIso, source: 'auto' });
+      gapBanner.innerHTML = '';
+    });
+    document.getElementById('gapAdjust').addEventListener('click', () => {
+      gapBanner.innerHTML = '';
+      openAddForm({ bedtime: startIso, wake: endIso, source: 'auto' });
+    });
+    document.getElementById('gapDismiss').addEventListener('click', () => {
+      localStorage.setItem(DISMISSED_KEY, startIso);
+      gapBanner.innerHTML = '';
+    });
+  }
+
+  function recordActivity() {
+    // Throttle: only overwrite if it's been at least a minute, otherwise the
+    // "last activity" timestamp never has a chance to age into a real gap.
+    const last = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (last && Date.now() - new Date(last).getTime() < 60000) return;
+    localStorage.setItem(LAST_ACTIVITY_KEY, new Date().toISOString());
+  }
+  ['pointerdown', 'keydown', 'scroll'].forEach((evt) =>
+    document.addEventListener(evt, recordActivity, { passive: true })
+  );
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForGap();
+  });
+
+  // ---- Add / edit past nights ----
+  function openAddForm(prefill = {}) {
+    const bedtimeVal = prefill.bedtime ? toLocalInputValue(prefill.bedtime) : '';
+    const wakeVal = prefill.wake ? toLocalInputValue(prefill.wake) : '';
+    addNightForm.innerHTML = `
+      <div class="edit-form">
+        <div class="row">
+          <div>
+            <label>Bedtime</label>
+            <input type="datetime-local" id="formBedtime" value="${bedtimeVal}">
+          </div>
+          <div>
+            <label>Wake time</label>
+            <input type="datetime-local" id="formWake" value="${wakeVal}">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-save" id="formSave">Save</button>
+          <button class="btn-cancel" id="formCancel">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('formSave').addEventListener('click', () => {
+      const bedtime = document.getElementById('formBedtime').value;
+      const wake = document.getElementById('formWake').value;
+      if (!bedtime || !wake) return;
+      addNight({
+        id: crypto.randomUUID(),
+        bedtime: new Date(bedtime).toISOString(),
+        wake: new Date(wake).toISOString(),
+        source: prefill.source === 'auto' ? 'auto' : 'manual',
+      });
+      addNightForm.innerHTML = '';
+    });
+    document.getElementById('formCancel').addEventListener('click', () => {
+      addNightForm.innerHTML = '';
+    });
+  }
+  addNightToggle.addEventListener('click', () => openAddForm());
+
+  function toLocalInputValue(iso) {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openEditForm(night) {
+    const container = document.getElementById(`edit-${night.id}`);
+    container.innerHTML = `
+      <div class="edit-form">
+        <div class="row">
+          <div>
+            <label>Bedtime</label>
+            <input type="datetime-local" id="editBedtime-${night.id}" value="${toLocalInputValue(night.bedtime)}">
+          </div>
+          <div>
+            <label>Wake time</label>
+            <input type="datetime-local" id="editWake-${night.id}" value="${toLocalInputValue(night.wake)}">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-save" id="editSave-${night.id}">Save</button>
+          <button class="btn-delete" id="editDelete-${night.id}">Delete</button>
+          <button class="btn-cancel" id="editCancel-${night.id}">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.getElementById(`editSave-${night.id}`).addEventListener('click', () => {
+      const bedtime = document.getElementById(`editBedtime-${night.id}`).value;
+      const wake = document.getElementById(`editWake-${night.id}`).value;
+      updateNight(night.id, {
+        bedtime: new Date(bedtime).toISOString(),
+        wake: new Date(wake).toISOString(),
+        source: 'manual',
+      });
+    });
+    document.getElementById(`editDelete-${night.id}`).addEventListener('click', () => deleteNight(night.id));
+    document.getElementById(`editCancel-${night.id}`).addEventListener('click', () => render());
+  }
+
+  // ---- Rendering ----
+  function render() {
+    refreshButtons();
+    const nights = loadNights();
+
+    // Stats: average over the most recently logged 7 nights.
+    const recent = nights.slice(0, 7);
+    if (recent.length) {
+      const avg = Math.round(recent.reduce((sum, n) => sum + durationMinutes(n.bedtime, n.wake), 0) / recent.length);
+      avgDuration.textContent = fmtDuration(avg);
+    } else {
+      avgDuration.textContent = '–';
+    }
+
+    // Bars: last 7 nights in chronological order, oldest to newest.
+    const chrono = recent.slice().reverse();
+    const maxMins = Math.max(600, ...chrono.map((n) => durationMinutes(n.bedtime, n.wake)));
+    barsContainer.innerHTML = chrono.length
+      ? chrono.map((n) => {
+          const mins = durationMinutes(n.bedtime, n.wake);
+          const heightPct = Math.max(4, Math.round((mins / maxMins) * 100));
+          const label = nightLabelDate(n.bedtime).toLocaleDateString([], { weekday: 'short' });
+          return `<div class="bar-col"><div class="bar" style="height:${heightPct}%" title="${fmtDuration(mins)}"></div><div class="bar-day">${label}</div></div>`;
+        }).join('')
+      : '<div class="empty">No nights logged yet</div>';
+
+    // History list
+    historyList.innerHTML = nights.length
+      ? nights.map((n) => `
+          <div class="night-row">
+            <div class="night-info">
+              <div class="night-date">${fmtDate(nightLabelDate(n.bedtime))}</div>
+              <div>${fmtTime(n.bedtime)} – ${fmtTime(n.wake)}
+                <span class="night-dur">${fmtDuration(durationMinutes(n.bedtime, n.wake))}</span>
+                <span class="tag">${n.source}</span>
+              </div>
+              <div id="edit-${n.id}"></div>
+            </div>
+            <button class="icon-btn" data-edit="${n.id}">Edit</button>
+          </div>
+        `).join('')
+      : '<div class="empty">No nights logged yet — use the buttons above or add one manually.</div>';
+
+    historyList.querySelectorAll('[data-edit]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const night = nights.find((n) => n.id === btn.dataset.edit);
+        openEditForm(night);
+      });
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch((err) =>
+      console.error('Service worker registration failed', err)
+    );
+  }
+
+  checkForGap();
+  render();
 </script>
 </body>
 </html>

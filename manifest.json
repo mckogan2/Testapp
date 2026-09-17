@@ -1,10 +1,10 @@
 {
-  "name": "Notification Test App",
-  "short_name": "NotifyTest",
+  "name": "Sleep Tracker",
+  "short_name": "SleepTracker",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]

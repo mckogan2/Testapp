@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מיקרופון לרשימת הקניות</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg:        #F1F4EF;
+    --surface:   #FBFCFA;
+    --surface-2: #E7EDE4;
+    --ink:       #16211B;
+    --ink-soft:  #55635A;
+    --ink-faint: #8A968E;
+    --line:      #D5DED1;
+    --line-firm: #B9C6B4;
+    --accent:    #1F6B4A;
+    --accent-bg: #DDEDE3;
+    --warn:      #8A5A05;
+    --warn-bg:   #F6E9D2;
+    --live:      #B3261E;
+    --font-he: "Assistant", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #111612;
+      --surface:   #1A211C;
+      --surface-2: #232B25;
+      --ink:       #E7EEE8;
+      --ink-soft:  #A5B2A8;
+      --ink-faint: #75837A;
+      --line:      #2C352E;
+      --line-firm: #3D4940;
+      --accent:    #63CE99;
+      --accent-bg: #1B3629;
+      --warn:      #E3AE5A;
+      --warn-bg:   #3A2E18;
+      --live:      #F2685F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:        #111612;
+    --surface:   #1A211C;
+    --surface-2: #232B25;
+    --ink:       #E7EEE8;
+    --ink-soft:  #A5B2A8;
+    --ink-faint: #75837A;
+    --line:      #2C352E;
+    --line-firm: #3D4940;
+    --accent:    #63CE99;
+    --accent-bg: #1B3629;
+    --warn:      #E3AE5A;
+    --warn-bg:   #3A2E18;
+    --live:      #F2685F;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-he);
+    font-size: 16px;
+    line-height: 1.5;
+    direction: rtl;
+  }
+  .wrap {
+    max-width: 660px;
+    margin: 0 auto;
+    padding-inline: 18px;
+    padding-block: 26px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  header p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 15px;
+    max-width: 52ch;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+
+  /* ---- input ---- */
+  .mic-row { display: flex; gap: 10px; align-items: stretch; }
+  #mic {
+    flex: 0 0 auto;
+    width: 62px;
+    border: 1px solid var(--accent);
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-radius: 12px;
+    font-size: 24px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  #mic[disabled] { opacity: .45; cursor: not-allowed; }
+  #mic.listening {
+    background: var(--live);
+    border-color: var(--live);
+    color: #fff;
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--live) 22%, transparent); } }
+  @media (prefers-reduced-motion: reduce) { #mic.listening { animation: none; } }
+
+  #phrase {
+    flex: 1 1 auto;
+    min-width: 0;
+    font: inherit;
+    font-size: 17px;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--line-firm);
+    border-radius: 12px;
+    padding: 12px 14px;
+    direction: rtl;
+  }
+  #phrase:focus-visible, #mic:focus-visible, .chip:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .hint { margin: 10px 0 0; font-size: 13px; color: var(--ink-faint); }
+  .hint.live { color: var(--live); font-weight: 600; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .chip {
+    font: inherit;
+    font-size: 13.5px;
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px dashed var(--line-firm);
+    border-radius: 999px;
+    padding: 5px 11px;
+    cursor: pointer;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--accent); }
+
+  /* ---- results ---- */
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .count {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 7px;
+    background: var(--surface-2);
+    color: var(--ink-soft);
+  }
+  .count.hit { background: var(--accent-bg); color: var(--accent); }
+  .count.miss { background: var(--warn-bg); color: var(--warn); }
+
+  ul.results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  ul.results li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+  }
+  ul.results li:first-child { border-radius: 10px 10px 0 0; }
+  ul.results li:last-child  { border-radius: 0 0 10px 10px; }
+  ul.results li:only-child  { border-radius: 10px; }
+  .tick { color: var(--accent); font-weight: 700; font-size: 15px; }
+  .item-name { font-weight: 600; }
+  .item-cat { margin-inline-start: auto; font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; }
+
+  .unknowns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .unknown {
+    font: inherit;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--warn-bg);
+    color: var(--warn);
+    border: 1px solid transparent;
+    border-radius: 9px;
+    padding: 7px 11px;
+    cursor: pointer;
+  }
+  .unknown[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .unknown .mark { font-weight: 700; font-family: var(--font-mono); }
+
+  .empty { color: var(--ink-faint); font-size: 14.5px; margin: 0; }
+
+  /* ---- trace ---- */
+  details { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+  summary { cursor: pointer; font-size: 13.5px; color: var(--ink-soft); font-weight: 600; }
+  .trace-scroll { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; }
+  td.mono { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); direction: rtl; }
+  td .ok   { color: var(--accent); font-weight: 600; }
+  td .skip { color: var(--ink-faint); }
+  td .no   { color: var(--warn); font-weight: 600; }
+
+  /* ---- catalog ---- */
+  .cat-block { margin-bottom: 14px; }
+  .cat-block:last-child { margin-bottom: 0; }
+  .cat-title { font-size: 14px; font-weight: 700; margin: 0 0 6px; }
+  .cat-items { font-size: 14px; color: var(--ink-soft); line-height: 1.9; margin: 0; }
+  .cat-items span { display: inline-block; margin-inline-end: 4px; }
+  .cat-items span::after { content: "·"; color: var(--line-firm); margin-inline-start: 5px; }
+  .cat-items span:last-child::after { content: ""; }
+
+  footer { font-size: 13px; color: var(--ink-faint); text-align: center; }
+  html, body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>מיקרופון לרשימת הקניות</h1>
+    <p>אומרים משפט בעברית — ובודקים מה המערכת מזהה מתוך הרשימה הקיימת, מה היא מפספסת, ולמה. בלי להתקין כלום.</p>
+  </header>
+
+  <section class="panel">
+    <p class="eyebrow">אמירה</p>
+    <div class="mic-row">
+      <button id="mic" aria-label="הקלטה">🎙️</button>
+      <input id="phrase" type="text" autocomplete="off" spellcheck="false"
+             value="אני צריך חלב לחם בננות ותפוחי אדמה בבקשה">
+    </div>
+    <p class="hint" id="hint"></p>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">מה יסומן</p>
+    <div class="counts" id="counts"></div>
+    <div id="matched"></div>
+
+    <div id="unknown-block" style="margin-top:16px">
+      <p class="eyebrow">מילים שלא זוהו</p>
+      <p class="empty" id="unknown-lead">לחיצה על מילה מסמנת אותה להוספה כפריט חדש — בדיוק כמו שהאפליקציה תשאל.</p>
+      <div class="unknowns" id="unknowns"></div>
+    </div>
+
+    <details id="trace-wrap">
+      <summary>איך זה הוכרע — מילה אחר מילה</summary>
+      <div class="trace-scroll">
+        <table>
+          <thead>
+            <tr><th>נאמר</th><th>שורש</th><th>תוצאה</th></tr>
+          </thead>
+          <tbody id="trace"></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <p class="eyebrow">מה אפשר לזהות — 110 פריטים</p>
+    <div id="catalog"></div>
+  </section>
+
+  <footer>שלב 1 מתוך 3 · אחרי זה: מיקרופון אמיתי ב־Netlify, ורק בסוף התקנה אחת</footer>
+</div>
+
+<script>
+const INITIAL_ITEMS = {"🥦 ירקות ופירות":{"frequent":["עגבניות","בצל","תפוחי אדמה","שום","חסה","גזר","בננות","תפוחים","לימונים","אבוקדו","מלפפון","פלפל","פטריות"],"occasional":["אספרגוס","ברוקולי","אוכמניות","מנגו","ג'ינג'ר","בטטה","כרובית","תרד"]},"🥩 בשר ודגים":{"frequent":["חזה עוף","בשר טחון","ביצים","סלמון","נקניקיות"],"occasional":["כבש","שרימפס","טונה (שימורים)","הודו","דג ים"]},"🧊 מקפיא":{"frequent":["צ'יפס","פיצות קטנות","עוף קפוא"],"occasional":["דגים קפואים","ירקות קפואים","גלידה","מוצרלה קפואה"]},"🧀 מוצרי חלב":{"frequent":["חלב","חמאה","גבינה צהובה","גבינה לבנה","קוטג'","יוגורט","שמנת"],"occasional":["שמנת חמוצה","מוצרלה","פרמזן","גבינת שמנת","לבנה"]},"🍞 מאפים":{"frequent":["לחם","פיתות","לחמניות","פיצה"],"occasional":["בייגל","קרואסון","בגט","לחם שיפון"]},"🥫 מזון יבש":{"frequent":["שמן זית","אורז","פסטה","פתיתים","מלח","פלפל שחור","סוכר","קפה","תה","קמח","עגבניות מרוסקות","רסק עגבניות","אפונה","זיתים","תירס"],"occasional":["דבש","רוטב סויה","חומץ","אבקת אפייה","חלב קוקוס","עדשים","חומוס","כוסמת","שעועית"]},"🧴 בית ומשק":{"frequent":["סבון כלים","אבקת כביסה","נייר טואלט","שקיות זבל","מגבות נייר"],"occasional":["אקונומיקה","מרכך כביסה","ספוגים","נייר אלומיניום","ניילון נצמד"]},"🍫 חטיפים ושתייה":{"frequent":["מים","מיץ","קרקרים","חטיפים","קורנפלקס"],"occasional":["שוקולד","חטיפי חלבון","מים מוגזים","פופקורן","בירה"]}};
+
+/* ============ the matcher — identical to what ships in the app ============ */
+
+const VOICE_STOPWORDS = new Set([
+  "תוסיף","תוסיפי","תוסיפו","הוסף","הוסיפי","תכניס","תכניסי",
+  "צריך","צריכה","צריכים","צריכות","קנה","תקנה","תקני","לקנות",
+  "את","גם","עוד","בבקשה","לי","לנו","של","ו","עם","כמה",
+  "אני","אנחנו","יש","אין","בוא","נא",
+]);
+const HEB_PREFIXES = ["ו","ה","ב","ל","מ","כ","ש"];
+
+function vNormalize(s) {
+  return String(s || "")
+    .replace(/[֑-ׇ]/g, "")
+    .replace(/[״׳"'`.,!?;:()\[\]{}\/\\-]/g, " ")
+    .replace(/ך/g, "כ").replace(/ם/g, "מ").replace(/ן/g, "נ")
+    .replace(/ף/g, "פ").replace(/ץ/g, "צ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+let VOICE_STOPSET = null;
+function isStopword(w) {
+  if (!VOICE_STOPSET) VOICE_STOPSET = new Set([...VOICE_STOPWORDS].map(vNormalize));
+  return VOICE_STOPSET.has(w);
+}
+
+function vStem(w) {
+  for (const suf of ["יות","ות","ימ","ה","י"]) {
+    if (w.length - suf.length >= 3 && w.endsWith(suf)) {
+      let base = w.slice(0, w.length - suf.length);
+      if (base.length > 3 && base.endsWith("י")) base = base.slice(0, -1);
+      return base;
+    }
+  }
+  return w;
+}
+
+function vPrefixVariants(w) {
+  const out = [w];
+  for (let n = 1; n <= 2; n++) {
+    if (w.length - n < 3) break;
+    if (w.slice(0, n).split("").every((c) => HEB_PREFIXES.includes(c))) out.push(w.slice(n));
+  }
+  return out;
+}
+
+function vKey(words) { return words.map(vStem).join(" "); }
+
+function buildVoiceIndex(itemsByCat) {
+  const index = new Map();
+  for (const [cat, groups] of Object.entries(itemsByCat)) {
+    for (const item of [...(groups.frequent || []), ...(groups.occasional || [])]) {
+      const words = vNormalize(item).split(" ").filter(Boolean);
+      if (!words.length) continue;
+      const key = vKey(words);
+      if (!index.has(key)) index.set(key, { cat, item, words: words.length });
+    }
+  }
+  return index;
+}
+
+// Same walk as the app, plus a per-token record of why each decision fell out.
+function matchVoiceTranscript(transcript, index) {
+  const tokens = vNormalize(transcript).split(" ").filter(Boolean);
+  const matched = [], unknown = [], trace = [];
+  const seen = new Set();
+  let i = 0;
+
+  while (i < tokens.length) {
+    let hit = null, span = 0;
+    for (let len = Math.min(3, tokens.length - i); len >= 1 && !hit; len--) {
+      const window = tokens.slice(i, i + len);
+      for (const head of vPrefixVariants(window[0])) {
+        const candidate = index.get(vKey([head, ...window.slice(1)]));
+        if (candidate) { hit = candidate; span = len; break; }
+      }
+    }
+    if (hit) {
+      const said = tokens.slice(i, i + span).join(" ");
+      const id = hit.cat + "||" + hit.item;
+      const dup = seen.has(id);
+      if (!dup) { seen.add(id); matched.push(hit); }
+      trace.push({ said, stem: vKey(tokens.slice(i, i + span)), kind: dup ? "dup" : "match", item: hit.item });
+      i += span;
+    } else {
+      const raw = tokens[i];
+      if (isStopword(raw)) {
+        trace.push({ said: raw, stem: "—", kind: "stop" });
+      } else if (raw.length > 1) {
+        unknown.push(raw);
+        trace.push({ said: raw, stem: vStem(raw), kind: "unknown" });
+      } else {
+        trace.push({ said: raw, stem: "—", kind: "stop" });
+      }
+      i += 1;
+    }
+  }
+  return { matched, unknown, trace };
+}
+
+/* ============ page ============ */
+
+const INDEX = buildVoiceIndex(INITIAL_ITEMS);
+const $ = (id) => document.getElementById(id);
+const toAdd = new Set();
+
+const EXAMPLES = [
+  "תוסיף חלב ולחם",
+  "צריך עגבניה ובננה",
+  "תפוחי אדמה ותפוחים",
+  "שמפו וחלב",
+  "קפה תה סוכר וקמח",
+  "נייר טואלט ואבקת כביסה",
+];
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function render() {
+  const text = $("phrase").value;
+  const { matched, unknown, trace } = matchVoiceTranscript(text, INDEX);
+
+  $("counts").innerHTML =
+    '<span class="count ' + (matched.length ? "hit" : "") + '">' + matched.length + ' פריטים יסומנו</span>' +
+    '<span class="count ' + (unknown.length ? "miss" : "") + '">' + unknown.length + ' מילים לא זוהו</span>';
+
+  $("matched").innerHTML = matched.length
+    ? '<ul class="results">' + matched.map((m) =>
+        '<li><span class="tick">✓</span><span class="item-name">' + esc(m.item) +
+        '</span><span class="item-cat">' + esc(m.cat) + '</span></li>').join("") + '</ul>'
+    : '<p class="empty">שום פריט מהרשימה לא זוהה במשפט הזה.</p>';
+
+  const block = $("unknown-block");
+  block.hidden = unknown.length === 0;
+  if (unknown.length) {
+    $("unknowns").innerHTML = unknown.map((w) => {
+      const on = toAdd.has(w);
+      return '<button class="unknown" data-word="' + esc(w) + '" aria-pressed="' + on + '">' +
+             '<span class="mark">' + (on ? "✓" : "+") + '</span>' + esc(w) + '</button>';
+    }).join("");
+  }
+
+  const label = { match: "סומן", dup: "כבר סומן", stop: "מילת קישור", unknown: "לא ברשימה" };
+  const cls   = { match: "ok",  dup: "skip",     stop: "skip",       unknown: "no" };
+  $("trace").innerHTML = trace.map((t) =>
+    '<tr><td>' + esc(t.said) + '</td><td class="mono">' + esc(t.stem) + '</td><td><span class="' +
+    cls[t.kind] + '">' + label[t.kind] + (t.item && t.kind === "match" ? " → " + esc(t.item) : "") +
+    '</span></td></tr>').join("");
+  $("trace-wrap").hidden = trace.length === 0;
+}
+
+$("phrase").addEventListener("input", () => { toAdd.clear(); render(); });
+
+$("unknowns").addEventListener("click", (e) => {
+  const btn = e.target.closest(".unknown");
+  if (!btn) return;
+  const w = btn.dataset.word;
+  toAdd.has(w) ? toAdd.delete(w) : toAdd.add(w);
+  render();
+});
+
+$("chips").innerHTML = EXAMPLES.map((p) => '<button class="chip">' + esc(p) + '</button>').join("");
+$("chips").addEventListener("click", (e) => {
+  if (!e.target.classList.contains("chip")) return;
+  $("phrase").value = e.target.textContent;
+  toAdd.clear();
+  render();
+});
+
+$("catalog").innerHTML = Object.entries(INITIAL_ITEMS).map(([cat, g]) => {
+  const all = [...(g.frequent || []), ...(g.occasional || [])];
+  return '<div class="cat-block"><p class="cat-title">' + esc(cat) + '</p><p class="cat-items">' +
+         all.map((i) => '<span>' + esc(i) + '</span>').join("") + '</p></div>';
+}).join("");
+
+/* ---- microphone (Chrome / Safari on the phone; WebView has none) ---- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const mic = $("mic"), hint = $("hint");
+
+if (!SR) {
+  mic.disabled = true;
+  hint.textContent = "הדפדפן הזה לא תומך במיקרופון — אפשר להקליד משפט, זה בודק בדיוק אותו דבר.";
+} else {
+  hint.textContent = "לוחצים על המיקרופון ואומרים משפט, או מקלידים.";
+  let rec = null;
+
+  mic.addEventListener("click", () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR();
+    rec.lang = "he-IL";
+    rec.interimResults = true;
+    rec.continuous = false;
+
+    rec.onstart = () => {
+      mic.classList.add("listening");
+      hint.classList.add("live");
+      hint.textContent = "מקשיב…";
+    };
+    rec.onresult = (e) => {
+      let text = "";
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + " ";
+      $("phrase").value = text.trim();
+      toAdd.clear();
+      render();
+    };
+    rec.onerror = (e) => {
+      hint.classList.remove("live");
+      hint.textContent = e.error === "not-allowed"
+        ? "אין הרשאת מיקרופון. צריך לאשר אותה בהגדרות האתר בדפדפן."
+        : "ההקלטה נכשלה (" + e.error + "). אפשר להקליד במקום.";
+    };
+    rec.onend = () => {
+      rec = null;
+      mic.classList.remove("listening");
+      hint.classList.remove("live");
+      if (!hint.textContent.startsWith("אין הרשאת") && !hint.textContent.startsWith("ההקלטה נכשלה")) {
+        hint.textContent = "לוחצים על המיקרופון ואומרים משפט, או מקלידים.";
+      }
+    };
+    rec.start();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

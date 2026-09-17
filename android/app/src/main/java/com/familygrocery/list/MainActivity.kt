@@ -3,9 +3,13 @@ package com.familygrocery.list
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.speech.RecognizerIntent
+import android.webkit.JavascriptInterface
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
 import android.webkit.WebChromeClient
@@ -22,6 +26,7 @@ import androidx.webkit.WebResourceErrorCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import com.google.firebase.messaging.FirebaseMessaging
+import org.json.JSONObject
 
 /**
  * Thin native wrapper around the family grocery list single-page app. The
@@ -35,6 +40,13 @@ import com.google.firebase.messaging.FirebaseMessaging
  * file:// URL, because the page's "copy to WhatsApp" buttons use
  * navigator.clipboard.writeText(), which requires a secure context —
  * file:// origins don't reliably count as one, https ones do.
+ *
+ * The one thing the page genuinely cannot do for itself is listen. A
+ * WebView ships no Web Speech API at all, so the page looks for an
+ * AndroidVoice bridge first and falls back to the browser's recogniser
+ * only when it isn't there. Speech is captured with RecognizerIntent,
+ * which hands the recording off to whichever recogniser the device has —
+ * meaning the microphone permission is that app's to ask for, not ours.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -43,6 +55,52 @@ class MainActivity : AppCompatActivity() {
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    private val speechLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val heard = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.trim()
+            if (result.resultCode == RESULT_OK && !heard.isNullOrEmpty()) {
+                callJs("window.onVoiceResult(${JSONObject.quote(heard)})")
+            } else {
+                // A cancelled dialog and a silent one look the same from
+                // here, and the page says the same thing for both.
+                callJs("window.onVoiceError(\"no-speech\")")
+            }
+        }
+
+    /** Runs a snippet in the page. Safe to call from a JS-bridge thread. */
+    private fun callJs(script: String) {
+        webView.post { webView.evaluateJavascript(script, null) }
+    }
+
+    /** Exposed to the page as `AndroidVoice`. */
+    private inner class VoiceBridge {
+        @JavascriptInterface
+        fun startListening() {
+            // Bridge methods arrive on a binder thread; starting an
+            // Activity has to happen on the main one.
+            runOnUiThread {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                    )
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "he-IL")
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.voice_prompt))
+                }
+                try {
+                    speechLauncher.launch(intent)
+                } catch (e: ActivityNotFoundException) {
+                    // No recogniser installed — the page falls back to
+                    // telling the user to type the item instead.
+                    callJs("window.onVoiceError(\"unavailable\")")
+                }
+            }
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +119,9 @@ class MainActivity : AppCompatActivity() {
 
         webView = WebView(this)
         setContentView(webView)
+        // Only ever loads our own bundled asset, so there is no untrusted
+        // page on the other side of this bridge.
+        webView.addJavascriptInterface(VoiceBridge(), "AndroidVoice")
 
         with(webView.settings) {
             javaScriptEnabled = true

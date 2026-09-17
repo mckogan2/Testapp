@@ -290,34 +290,58 @@ const INITIAL_ITEMS = {"🥦 ירקות ופירות":{"frequent":["עגבניו
 
 /* ============ the matcher — identical to what ships in the app ============ */
 
+// Words people say around the items themselves, which should never be
+// mistaken for a product the list is missing.
 const VOICE_STOPWORDS = new Set([
   "תוסיף","תוסיפי","תוסיפו","הוסף","הוסיפי","תכניס","תכניסי",
   "צריך","צריכה","צריכים","צריכות","קנה","תקנה","תקני","לקנות",
   "את","גם","עוד","בבקשה","לי","לנו","של","ו","עם","כמה",
   "אני","אנחנו","יש","אין","בוא","נא",
 ]);
+
 const HEB_PREFIXES = ["ו","ה","ב","ל","מ","כ","ש"];
 
-function vNormalize(s) {
+// Everything that ends a word: whitespace, punctuation, and the two
+// Hebrew marks that look like quotes. Splitting on the same set on both
+// sides is what lets "קוטג'" spoken meet "קוטג'" stored.
+const V_SPLIT = /[\s"'`.,!?;:()\[\]{}\/\\״׳-]+/;
+
+// Final letters fold into their ordinary forms so suffix handling
+// behaves the same wherever a word happens to sit in a sentence.
+function vFold(w) {
+  return w.replace(/ך/g,"כ").replace(/ם/g,"מ").replace(/ן/g,"נ")
+          .replace(/ף/g,"פ").replace(/ץ/g,"צ");
+}
+
+// Tokens keep both forms: `norm` is what we match on, `raw` is what the
+// speaker actually said. Adding a new item must use `raw` — folding
+// would store "שמן" as "שמנ" and leave a misspelt item in the list
+// forever.
+function vTokenize(s) {
   return String(s || "")
     .replace(/[֑-ׇ]/g, "")
-    .replace(/[״׳"'`.,!?;:()\[\]{}\/\\-]/g, " ")
-    .replace(/ך/g, "כ").replace(/ם/g, "מ").replace(/ן/g, "נ")
-    .replace(/ף/g, "פ").replace(/ץ/g, "צ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .split(V_SPLIT)
+    .filter(Boolean)
+    .map((w) => ({ raw: w, norm: vFold(w) }));
 }
+
+function vNorms(s) { return vTokenize(s).map((t) => t.norm); }
 
 let VOICE_STOPSET = null;
 function isStopword(w) {
-  if (!VOICE_STOPSET) VOICE_STOPSET = new Set([...VOICE_STOPWORDS].map(vNormalize));
+  if (!VOICE_STOPSET) VOICE_STOPSET = new Set([...VOICE_STOPWORDS].map(vFold));
   return VOICE_STOPSET.has(w);
 }
 
+// Very light stemming: drop a plural or feminine ending when something
+// real is left behind. Linguistic accuracy matters less than applying
+// the same transformation to both sides so they meet in the middle.
 function vStem(w) {
   for (const suf of ["יות","ות","ימ","ה","י"]) {
     if (w.length - suf.length >= 3 && w.endsWith(suf)) {
       let base = w.slice(0, w.length - suf.length);
+      // A leftover yod would leave עגבניה (→ עגבני) short of
+      // עגבניות (→ עגבנ); drop it so both land on the same stem.
       if (base.length > 3 && base.endsWith("י")) base = base.slice(0, -1);
       return base;
     }
@@ -325,6 +349,7 @@ function vStem(w) {
   return w;
 }
 
+// "ולחם" → also try "לחם". Only worth it if a real word remains.
 function vPrefixVariants(w) {
   const out = [w];
   for (let n = 1; n <= 2; n++) {
@@ -336,55 +361,75 @@ function vPrefixVariants(w) {
 
 function vKey(words) { return words.map(vStem).join(" "); }
 
+// A word we failed to match may still be carrying the conjunction that
+// joined it to the previous item — "...ביסלי וקטשופ". Dropping it is a
+// guess, not a certainty: וניל and ויטמין really do start with ו. The
+// review sheet makes the guess editable, so a wrong one costs a tap.
+function vTrimConj(raw) {
+  return (raw.length > 3 && raw.startsWith("ו")) ? raw.slice(1) : raw;
+}
+
+// Built from the live catalogue — starter items plus whatever the family
+// has added — so anything added by hand becomes speakable straight away.
 function buildVoiceIndex(itemsByCat) {
   const index = new Map();
   for (const [cat, groups] of Object.entries(itemsByCat)) {
     for (const item of [...(groups.frequent || []), ...(groups.occasional || [])]) {
-      const words = vNormalize(item).split(" ").filter(Boolean);
+      const words = vNorms(item);
       if (!words.length) continue;
       const key = vKey(words);
+      // First one wins, so a "frequent" item beats an "occasional" twin.
       if (!index.has(key)) index.set(key, { cat, item, words: words.length });
     }
   }
   return index;
 }
 
-// Same walk as the app, plus a per-token record of why each decision fell out.
+// Walks the sentence left to right taking the longest phrase that
+// matches, so "תפוחי אדמה" wins over the "תפוחים" hiding inside it.
+// Returns the items to tick, the words it didn't recognise, and a
+// per-token account of how each decision fell out.
 function matchVoiceTranscript(transcript, index) {
-  const tokens = vNormalize(transcript).split(" ").filter(Boolean);
+  const tokens = vTokenize(transcript);
   const matched = [], unknown = [], trace = [];
-  const seen = new Set();
+  const seenItem = new Set(), seenWord = new Set();
   let i = 0;
 
   while (i < tokens.length) {
     let hit = null, span = 0;
+
     for (let len = Math.min(3, tokens.length - i); len >= 1 && !hit; len--) {
-      const window = tokens.slice(i, i + len);
+      const window = tokens.slice(i, i + len).map((t) => t.norm);
+      // Only the first word of a phrase realistically carries a prefix.
       for (const head of vPrefixVariants(window[0])) {
         const candidate = index.get(vKey([head, ...window.slice(1)]));
         if (candidate) { hit = candidate; span = len; break; }
       }
     }
+
     if (hit) {
-      const said = tokens.slice(i, i + span).join(" ");
+      const said = tokens.slice(i, i + span).map((t) => t.raw).join(" ");
       const id = hit.cat + "||" + hit.item;
-      const dup = seen.has(id);
-      if (!dup) { seen.add(id); matched.push(hit); }
-      trace.push({ said, stem: vKey(tokens.slice(i, i + span)), kind: dup ? "dup" : "match", item: hit.item });
+      const dup = seenItem.has(id);
+      if (!dup) { seenItem.add(id); matched.push(hit); }
+      trace.push({ said, stem: vKey(tokens.slice(i, i + span).map((t) => t.norm)),
+                   kind: dup ? "dup" : "match", item: hit.item });
       i += span;
     } else {
-      const raw = tokens[i];
-      if (isStopword(raw)) {
-        trace.push({ said: raw, stem: "—", kind: "stop" });
-      } else if (raw.length > 1) {
-        unknown.push(raw);
-        trace.push({ said: raw, stem: vStem(raw), kind: "unknown" });
+      const t = tokens[i];
+      if (isStopword(t.norm) || t.norm.length < 2) {
+        trace.push({ said: t.raw, stem: "—", kind: "stop" });
+      } else if (seenWord.has(t.norm)) {
+        trace.push({ said: t.raw, stem: vStem(t.norm), kind: "dup" });
       } else {
-        trace.push({ said: raw, stem: "—", kind: "stop" });
+        seenWord.add(t.norm);
+        unknown.push(vTrimConj(t.raw));
+        trace.push({ said: t.raw, stem: vStem(t.norm), kind: "unknown" });
       }
       i += 1;
     }
   }
+
   return { matched, unknown, trace };
 }
 
@@ -431,7 +476,7 @@ function render() {
     }).join("");
   }
 
-  const label = { match: "סומן", dup: "כבר סומן", stop: "מילת קישור", unknown: "לא ברשימה" };
+  const label = { match: "סומן", dup: "כבר נאמר", stop: "מילת קישור", unknown: "לא ברשימה" };
   const cls   = { match: "ok",  dup: "skip",     stop: "skip",       unknown: "no" };
   $("trace").innerHTML = trace.map((t) =>
     '<tr><td>' + esc(t.said) + '</td><td class="mono">' + esc(t.stem) + '</td><td><span class="' +

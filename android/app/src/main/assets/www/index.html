@@ -174,6 +174,45 @@
     font-size: 15px;
     line-height: 2;
   }
+  /* ─── VOICE ─── */
+  .search-row { display: flex; gap: 8px; align-items: center; direction: rtl; }
+  .search-row .search-container { flex: 1; min-width: 0; }
+  .mic-btn {
+    flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%;
+    background: #2d5a27; color: #fff; border: none; font-size: 18px;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .mic-btn.listening { background: #cc4444; animation: mic-pulse 1.1s ease-in-out infinite; }
+  @keyframes mic-pulse { 50% { box-shadow: 0 0 0 8px rgba(204,68,68,0.25); } }
+  @media (prefers-reduced-motion: reduce) { .mic-btn.listening { animation: none; } }
+  .voice-heard {
+    background: #f5f0e8; border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; color: #555; margin-bottom: 14px; direction: rtl;
+  }
+  .voice-empty { color: #aaa; font-size: 14px; padding: 8px 4px; }
+  .voice-cat-hint { color: #aaa; font-size: 12px; }
+  .modal-item .chk.on { background: #2d5a27; border-color: #2d5a27; color: #fff; }
+  .voice-new { padding: 9px 4px; border-bottom: 1px solid #f0f0f0; }
+  .voice-new:last-child { border-bottom: none; }
+  .voice-new-head { display: flex; align-items: center; gap: 10px; direction: rtl; }
+  .voice-new-label { font-size: 15px; flex: 1; cursor: pointer; }
+  .voice-new-input, .voice-new-cat { display: none; }
+  .voice-new.on .voice-new-label { display: none; }
+  .voice-new.on .voice-new-input { display: block; }
+  .voice-new.on .voice-new-cat { display: block; }
+  .voice-new-input {
+    flex: 1; min-width: 0; padding: 8px 10px; border: 1.5px solid #2d5a27;
+    border-radius: 8px; font-family: inherit; font-size: 15px;
+    direction: rtl; text-align: right; background: #fff; outline: none;
+  }
+  .voice-new-cat {
+    width: 100%; margin-top: 8px; padding: 8px 10px; border: 1.5px solid #ddd;
+    border-radius: 8px; font-family: inherit; font-size: 14px;
+    direction: rtl; background: #fff;
+  }
+  #voice-apply:disabled { background: #ccc; cursor: default; }
   </style>
 </head>
 <body>
@@ -194,12 +233,15 @@
 
 <div class="tab-content active" id="content-list">
   <div class="search-wrap" id="search-wrap">
-    <div class="search-container">
-      <input class="search-input" id="search-input" type="text"
-        placeholder="&#x1F50D; חיפוש מוצר..."
-        oninput="onSearchInput(this.value)"
-      />
-      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    <div class="search-row">
+      <div class="search-container">
+        <input class="search-input" id="search-input" type="text"
+          placeholder="&#x1F50D; חיפוש מוצר..."
+          oninput="onSearchInput(this.value)"
+        />
+        <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+      </div>
+      <button class="mic-btn" id="mic-btn" onclick="startVoice()" aria-label="הוספה בדיבור">&#x1F3A4;</button>
     </div>
     <div class="search-results-label" id="search-label"></div>
   </div>
@@ -219,6 +261,21 @@
     🔄 <strong>סנכרון אוטומטי</strong><br>
     הרשימה מסתנכרנת כל 4 שניות.<br>
     💡 <strong>לחיצה ארוכה</strong> על פריט לעריכה או הסרה.
+  </div>
+</div>
+
+<!-- VOICE REVIEW MODAL -->
+<div class="modal-overlay" id="voice-modal">
+  <div class="modal">
+    <h3>&#x1F3A4; מה שמעתי</h3>
+    <div class="modal-sub" id="voice-sub"></div>
+    <div class="voice-heard" id="voice-heard"></div>
+    <div id="voice-matched"></div>
+    <div id="voice-unknown"></div>
+    <div class="modal-actions">
+      <button class="btn-confirm-done" id="voice-apply" onclick="applyVoice()">סמן</button>
+      <button class="btn-cancel" onclick="closeModal('voice-modal')">ביטול</button>
+    </div>
   </div>
 </div>
 
@@ -754,10 +811,12 @@ async function addCustomItem() {
       return;
     }
   }
+  const safeName = cleanItemName(name);
+  if (!safeName) return;
   const ci = ensureCat(cat);
-  ci.hidden = ci.hidden.filter(i => i !== name);
-  if (!ci.frequent.includes(name)) ci.frequent.push(name);
-  checked[`${cat}||${name}`]=true;
+  ci.hidden = ci.hidden.filter(i => i !== safeName);
+  if (!ci.frequent.includes(safeName)) ci.frequent.push(safeName);
+  checked[`${cat}||${safeName}`]=true;
   document.getElementById("new-item-name").value="";
   renderList(); updateSubtitle(); await saveToDB();
 }
@@ -1053,6 +1112,333 @@ function doImportText() {
   renderEvDetail(evImportTarget);
 }
 
+
+// ─── VOICE ───────────────────────────────────────────────
+// Words people say around the items themselves, which should never be
+// mistaken for a product the list is missing.
+const VOICE_STOPWORDS = new Set([
+  "תוסיף","תוסיפי","תוסיפו","הוסף","הוסיפי","תכניס","תכניסי",
+  "צריך","צריכה","צריכים","צריכות","קנה","תקנה","תקני","לקנות",
+  "את","גם","עוד","בבקשה","לי","לנו","של","ו","עם","כמה",
+  "אני","אנחנו","יש","אין","בוא","נא",
+]);
+
+const HEB_PREFIXES = ["ו","ה","ב","ל","מ","כ","ש"];
+
+// Everything that ends a word: whitespace, punctuation, and the two
+// Hebrew marks that look like quotes. Splitting on the same set on both
+// sides is what lets "קוטג'" spoken meet "קוטג'" stored.
+const V_SPLIT = /[\s"'`.,!?;:()\[\]{}\/\\״׳-]+/;
+
+// Final letters fold into their ordinary forms so suffix handling
+// behaves the same wherever a word happens to sit in a sentence.
+function vFold(w) {
+  return w.replace(/ך/g,"כ").replace(/ם/g,"מ").replace(/ן/g,"נ")
+          .replace(/ף/g,"פ").replace(/ץ/g,"צ");
+}
+
+// Tokens keep both forms: `norm` is what we match on, `raw` is what the
+// speaker actually said. Adding a new item must use `raw` — folding
+// would store "שמן" as "שמנ" and leave a misspelt item in the list
+// forever.
+function vTokenize(s) {
+  return String(s || "")
+    .replace(/[֑-ׇ]/g, "")
+    .split(V_SPLIT)
+    .filter(Boolean)
+    .map((w) => ({ raw: w, norm: vFold(w) }));
+}
+
+function vNorms(s) { return vTokenize(s).map((t) => t.norm); }
+
+let VOICE_STOPSET = null;
+function isStopword(w) {
+  if (!VOICE_STOPSET) VOICE_STOPSET = new Set([...VOICE_STOPWORDS].map(vFold));
+  return VOICE_STOPSET.has(w);
+}
+
+// Very light stemming: drop a plural or feminine ending when something
+// real is left behind. Linguistic accuracy matters less than applying
+// the same transformation to both sides so they meet in the middle.
+function vStem(w) {
+  for (const suf of ["יות","ות","ימ","ה","י"]) {
+    if (w.length - suf.length >= 3 && w.endsWith(suf)) {
+      let base = w.slice(0, w.length - suf.length);
+      // A leftover yod would leave עגבניה (→ עגבני) short of
+      // עגבניות (→ עגבנ); drop it so both land on the same stem.
+      if (base.length > 3 && base.endsWith("י")) base = base.slice(0, -1);
+      return base;
+    }
+  }
+  return w;
+}
+
+// "ולחם" → also try "לחם". Only worth it if a real word remains.
+function vPrefixVariants(w) {
+  const out = [w];
+  for (let n = 1; n <= 2; n++) {
+    if (w.length - n < 3) break;
+    if (w.slice(0, n).split("").every((c) => HEB_PREFIXES.includes(c))) out.push(w.slice(n));
+  }
+  return out;
+}
+
+function vKey(words) { return words.map(vStem).join(" "); }
+
+// A word we failed to match may still be carrying the conjunction that
+// joined it to the previous item — "...ביסלי וקטשופ". Dropping it is a
+// guess, not a certainty: וניל and ויטמין really do start with ו. The
+// review sheet makes the guess editable, so a wrong one costs a tap.
+function vTrimConj(raw) {
+  return (raw.length > 3 && raw.startsWith("ו")) ? raw.slice(1) : raw;
+}
+
+// Built from the live catalogue — starter items plus whatever the family
+// has added — so anything added by hand becomes speakable straight away.
+function buildVoiceIndex(itemsByCat) {
+  const index = new Map();
+  for (const [cat, groups] of Object.entries(itemsByCat)) {
+    for (const item of [...(groups.frequent || []), ...(groups.occasional || [])]) {
+      const words = vNorms(item);
+      if (!words.length) continue;
+      const key = vKey(words);
+      // First one wins, so a "frequent" item beats an "occasional" twin.
+      if (!index.has(key)) index.set(key, { cat, item, words: words.length });
+    }
+  }
+  return index;
+}
+
+// Walks the sentence left to right taking the longest phrase that
+// matches, so "תפוחי אדמה" wins over the "תפוחים" hiding inside it.
+// Returns the items to tick, the words it didn't recognise, and a
+// per-token account of how each decision fell out.
+function matchVoiceTranscript(transcript, index) {
+  const tokens = vTokenize(transcript);
+  const matched = [], unknown = [], trace = [];
+  const seenItem = new Set(), seenWord = new Set();
+  let i = 0;
+
+  while (i < tokens.length) {
+    let hit = null, span = 0;
+
+    for (let len = Math.min(3, tokens.length - i); len >= 1 && !hit; len--) {
+      const window = tokens.slice(i, i + len).map((t) => t.norm);
+      // Only the first word of a phrase realistically carries a prefix.
+      for (const head of vPrefixVariants(window[0])) {
+        const candidate = index.get(vKey([head, ...window.slice(1)]));
+        if (candidate) { hit = candidate; span = len; break; }
+      }
+    }
+
+    if (hit) {
+      const said = tokens.slice(i, i + span).map((t) => t.raw).join(" ");
+      const id = hit.cat + "||" + hit.item;
+      const dup = seenItem.has(id);
+      if (!dup) { seenItem.add(id); matched.push(hit); }
+      trace.push({ said, stem: vKey(tokens.slice(i, i + span).map((t) => t.norm)),
+                   kind: dup ? "dup" : "match", item: hit.item });
+      i += span;
+    } else {
+      const t = tokens[i];
+      if (isStopword(t.norm) || t.norm.length < 2) {
+        trace.push({ said: t.raw, stem: "—", kind: "stop" });
+      } else if (seenWord.has(t.norm)) {
+        trace.push({ said: t.raw, stem: vStem(t.norm), kind: "dup" });
+      } else {
+        seenWord.add(t.norm);
+        unknown.push(vTrimConj(t.raw));
+        trace.push({ said: t.raw, stem: vStem(t.norm), kind: "unknown" });
+      }
+      i += 1;
+    }
+  }
+
+  return { matched, unknown, trace };
+}
+
+// Where a brand-new word lands unless the speaker picks somewhere else.
+const VOICE_DEFAULT_CAT = "🥫 מזון יבש";
+
+let voiceMatched = [], voiceUnknown = [];
+let voicePickM = new Set(), voicePickU = new Set();
+let voiceWord = [], voiceNewCat = [];
+let voiceRec = null;
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+}
+
+// Firebase rejects these characters in a key, and every save writes the
+// whole node at once — so one bad character in one item name silently
+// loses the entire list. Strip them on the way in.
+function cleanItemName(s) {
+  return String(s).replace(/[.$#\[\]\/]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// WebView has no speech API of its own, so inside the app the native
+// side supplies one. In a browser we use the platform's.
+function voiceEngine() {
+  if (window.AndroidVoice && typeof window.AndroidVoice.startListening === "function") return "android";
+  if (window.SpeechRecognition || window.webkitSpeechRecognition) return "web";
+  return null;
+}
+
+function setMicState(on) {
+  const b = document.getElementById("mic-btn");
+  if (b) b.classList.toggle("listening", on);
+}
+
+function startVoice() {
+  const engine = voiceEngine();
+  if (engine === "android") { setMicState(true); window.AndroidVoice.startListening(); return; }
+  if (engine !== "web") {
+    alert("הדפדפן הזה לא תומך בזיהוי דיבור. אפשר להוסיף פריט בלשונית ➕");
+    return;
+  }
+  if (voiceRec) { voiceRec.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  voiceRec = new SR();
+  voiceRec.lang = "he-IL";
+  voiceRec.interimResults = false;
+  voiceRec.continuous = false;
+  voiceRec.onstart = () => setMicState(true);
+  voiceRec.onresult = (e) => {
+    let text = "";
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript + " ";
+    window.onVoiceResult(text.trim());
+  };
+  voiceRec.onerror = (e) => window.onVoiceError(e.error);
+  voiceRec.onend = () => { voiceRec = null; setMicState(false); };
+  voiceRec.start();
+}
+
+// Both engines hand their result back through these two.
+window.onVoiceResult = function (transcript) {
+  setMicState(false);
+  if (!transcript || !transcript.trim()) { window.onVoiceError("no-speech"); return; }
+  openVoiceReview(transcript.trim());
+};
+
+window.onVoiceError = function (code) {
+  setMicState(false);
+  voiceRec = null;
+  alert(code === "not-allowed" || code === "permission" ? "אין הרשאת מיקרופון. צריך לאשר גישה למיקרופון."
+      : code === "no-speech" ? "לא שמעתי כלום. אפשר לנסות שוב."
+      : code === "unavailable" ? "לא נמצא במכשיר מנוע זיהוי דיבור. אפשר להוסיף פריט בלשונית ➕"
+      : "זיהוי הדיבור נכשל. אפשר לנסות שוב.");
+};
+
+function openVoiceReview(transcript) {
+  // Rebuilt on every use rather than cached: an item added a minute ago
+  // has to be speakable now, and a full rebuild costs well under a
+  // millisecond even for a list several times this size.
+  const res = matchVoiceTranscript(transcript, buildVoiceIndex(getItems()));
+  voiceMatched = res.matched;
+  voiceUnknown = res.unknown;
+  // Asymmetric on purpose. Ticking an item the speaker already has is
+  // harmless and usually right; creating a permanent new item off a
+  // possibly misheard word is not, so that one waits to be asked for.
+  voicePickM = new Set(voiceMatched.map((_, i) => i));
+  voicePickU = new Set();
+  voiceWord = voiceUnknown.slice();
+  voiceNewCat = voiceUnknown.map(() => VOICE_DEFAULT_CAT);
+  document.getElementById("voice-heard").textContent = '"' + transcript + '"';
+  renderVoiceReview();
+  document.getElementById("voice-modal").classList.add("open");
+}
+
+function voiceCatOptions(i) {
+  return Object.keys(INITIAL_ITEMS).map((c) =>
+    '<option value="' + escHtml(c) + '"' + (voiceNewCat[i] === c ? " selected" : "") + ">" +
+    escHtml(c) + "</option>").join("");
+}
+
+function renderVoiceReview() {
+  document.getElementById("voice-sub").textContent =
+    voiceMatched.length + " פריטים זוהו · " + voiceUnknown.length + " מילים לא זוהו";
+
+  document.getElementById("voice-matched").innerHTML = voiceMatched.length
+    ? '<div class="modal-cat">נמצאו ברשימה</div>' + voiceMatched.map((it, i) =>
+        '<div class="modal-item" onclick="toggleVoiceMatch(' + i + ')">' +
+          "<span>" + escHtml(it.item) +
+          ' <span class="voice-cat-hint">' + escHtml(it.cat) + "</span></span>" +
+          '<div class="chk' + (voicePickM.has(i) ? " on" : "") + '">' +
+          (voicePickM.has(i) ? "✓" : "") + "</div>" +
+        "</div>").join("")
+    : '<div class="voice-empty">לא זוהה אף פריט מהרשימה.</div>';
+
+  document.getElementById("voice-unknown").innerHTML = voiceUnknown.length
+    ? '<div class="modal-cat">לא זוהו — להוסיף כפריט חדש?</div>' + voiceUnknown.map((w, i) =>
+        '<div class="voice-new' + (voicePickU.has(i) ? " on" : "") + '">' +
+          '<div class="voice-new-head">' +
+            '<span class="voice-new-label" onclick="toggleVoiceNew(' + i + ')">' + escHtml(voiceWord[i]) + "</span>" +
+            '<input class="voice-new-input" type="text" value="' + escHtml(voiceWord[i]) +
+              '" oninput="voiceWord[' + i + ']=this.value" />' +
+            '<div class="chk' + (voicePickU.has(i) ? " on" : "") + '" onclick="toggleVoiceNew(' + i + ')">' +
+            (voicePickU.has(i) ? "✓" : "+") + "</div>" +
+          "</div>" +
+          '<select class="voice-new-cat" onchange="voiceNewCat[' + i + ']=this.value">' +
+            voiceCatOptions(i) +
+          "</select>" +
+        "</div>").join("")
+    : "";
+
+  updateVoiceApply();
+}
+
+function updateVoiceApply() {
+  const btn = document.getElementById("voice-apply");
+  const t = voicePickM.size, a = voicePickU.size;
+  btn.disabled = (t + a) === 0;
+  const items = t === 1 ? "פריט אחד" : t + " פריטים";
+  btn.textContent = !(t + a) ? "לא נבחר כלום"
+    : !t ? (a === 1 ? "הוסף פריט אחד" : "הוסף " + a + " פריטים")
+    : a ? "סמן " + items + " והוסף " + a
+    : "סמן " + items;
+}
+
+function toggleVoiceMatch(i) {
+  voicePickM.has(i) ? voicePickM.delete(i) : voicePickM.add(i);
+  renderVoiceReview();
+}
+
+function toggleVoiceNew(i) {
+  voicePickU.has(i) ? voicePickU.delete(i) : voicePickU.add(i);
+  renderVoiceReview();
+}
+
+// Only ever ticks and adds. Anything already in the basket that wasn't
+// mentioned is left exactly as it was.
+async function applyVoice() {
+  const existing = new Map();
+  for (const [cat, g] of Object.entries(getItems()))
+    for (const item of [...g.frequent, ...g.occasional])
+      existing.set(item.trim().toLowerCase(), { cat, item });
+
+  voicePickM.forEach((i) => {
+    const m = voiceMatched[i];
+    checked[`${m.cat}||${m.item}`] = true;
+  });
+
+  voicePickU.forEach((i) => {
+    const name = cleanItemName(voiceWord[i] || "");
+    if (!name) return;
+    // An edit can land on a word the list already has; tick that rather
+    // than create a second copy of it.
+    const dup = existing.get(name.toLowerCase());
+    if (dup) { checked[`${dup.cat}||${dup.item}`] = true; return; }
+    const cat = voiceNewCat[i] || VOICE_DEFAULT_CAT;
+    const ci = ensureCat(cat);
+    ci.hidden = ci.hidden.filter((x) => x !== name);
+    if (!ci.frequent.includes(name)) ci.frequent.push(name);
+    checked[`${cat}||${name}`] = true;
+  });
+
+  closeModal("voice-modal");
+  renderAll();
+  await saveToDB();
+}
 
 // ─── INIT ────────────────────────────────────────
 buildCategorySelect();

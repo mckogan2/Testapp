@@ -3,6 +3,19 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      Android 11+ hides other installed apps unless they are declared here.
+      Without this, resolving ACTION_RECOGNIZE_SPEECH fails even when a
+      speech recogniser is installed, and the mic button appears broken.
+      RECORD_AUDIO is deliberately absent: the recogniser app records, and
+      asks for that permission itself.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
